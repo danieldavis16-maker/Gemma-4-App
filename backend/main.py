@@ -4,8 +4,10 @@ import logging
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 
+from documents import router as documents_router
 from models import ChatRequest, WSMessage
 from ollama_client import stream_chat
+from rag import format_rag_context, retrieve
 from search import format_search_context, web_search
 
 logging.basicConfig(level=logging.INFO)
@@ -20,6 +22,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.include_router(documents_router)
 
 
 @app.get("/api/health")
@@ -62,6 +66,29 @@ async def websocket_chat(websocket: WebSocket):
                         WSMessage(
                             type="error",
                             content=f"Web search failed: {e}",
+                        ).model_dump_json()
+                    )
+
+            # If RAG is enabled, retrieve relevant document chunks
+            if request.rag and request.messages:
+                query = request.messages[-1].content
+                try:
+                    chunks = await retrieve(query)
+                    context = format_rag_context(chunks)
+
+                    await websocket.send_text(
+                        WSMessage(
+                            type="rag_context", content=context
+                        ).model_dump_json()
+                    )
+
+                    messages.insert(0, {"role": "system", "content": context})
+                except Exception as e:
+                    logger.error(f"RAG retrieval failed: {e}")
+                    await websocket.send_text(
+                        WSMessage(
+                            type="error",
+                            content=f"RAG retrieval failed: {e}",
                         ).model_dump_json()
                     )
 

@@ -9,6 +9,7 @@ class ChatMessage(BaseModel):
 class ChatRequest(BaseModel):
     messages: list[ChatMessage]
     web_search: bool = False
+    rag: bool = False
 
 
 class WSMessage(BaseModel):

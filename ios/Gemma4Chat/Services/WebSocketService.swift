@@ -14,11 +14,13 @@ struct ChatRequestMessage: Codable {
 struct ChatRequestPayload: Codable {
     let messages: [ChatRequestMessage]
     let web_search: Bool
+    let rag: Bool
 }
 
 protocol WebSocketServiceDelegate: AnyObject {
     func didReceiveToken(_ token: String)
     func didReceiveSearchResults(_ results: String)
+    func didReceiveRAGContext(_ context: String)
     func didFinishResponse()
     func didReceiveError(_ error: String)
     func didConnect()
@@ -54,9 +56,9 @@ class WebSocketService: NSObject {
         isConnected = false
     }
 
-    func sendChatRequest(messages: [(role: String, content: String)], webSearch: Bool) {
+    func sendChatRequest(messages: [(role: String, content: String)], webSearch: Bool, rag: Bool) {
         let requestMessages = messages.map { ChatRequestMessage(role: $0.role, content: $0.content) }
-        let payload = ChatRequestPayload(messages: requestMessages, web_search: webSearch)
+        let payload = ChatRequestPayload(messages: requestMessages, web_search: webSearch, rag: rag)
 
         guard let data = try? JSONEncoder().encode(payload),
               let jsonString = String(data: data, encoding: .utf8) else {
@@ -107,6 +109,8 @@ class WebSocketService: NSObject {
             delegate?.didReceiveToken(message.content)
         case "search_results":
             delegate?.didReceiveSearchResults(message.content)
+        case "rag_context":
+            delegate?.didReceiveRAGContext(message.content)
         case "done":
             delegate?.didFinishResponse()
         case "error":

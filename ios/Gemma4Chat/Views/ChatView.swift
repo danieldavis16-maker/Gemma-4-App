@@ -46,6 +46,7 @@ struct ChatView: View {
                 // Input bar
                 HStack(spacing: 8) {
                     SearchToggle(isEnabled: $viewModel.webSearchEnabled)
+                    RAGToggle(isEnabled: $viewModel.ragEnabled)
 
                     TextField("Message Gemma...", text: $viewModel.currentInput, axis: .vertical)
                         .textFieldStyle(.plain)
@@ -67,6 +68,18 @@ struct ChatView: View {
             }
             .navigationTitle("Gemma 4 Chat")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        viewModel.showDocumentsSheet = true
+                    } label: {
+                        Image(systemName: "folder")
+                    }
+                }
+            }
+            .sheet(isPresented: $viewModel.showDocumentsSheet) {
+                DocumentsSheet(viewModel: viewModel)
+            }
         }
     }
 
