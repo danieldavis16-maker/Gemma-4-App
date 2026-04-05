@@ -1,10 +1,10 @@
 import Foundation
 import SwiftUI
 
-struct DocumentInfo: Codable, Identifiable {
+struct DocumentInfo: Identifiable {
     var id: String { filename }
     let filename: String
-    let chunk_count: Int
+    let chunkCount: Int
 }
 
 @MainActor
@@ -13,98 +13,96 @@ class ChatViewModel: ObservableObject {
     @Published var isStreaming = false
     @Published var webSearchEnabled = false
     @Published var ragEnabled = false
-    @Published var isConnected = false
     @Published var currentInput = ""
     @Published var loadedDocuments: [DocumentInfo] = []
     @Published var showDocumentsSheet = false
-
-    private let host: String
-    private let port: Int
+    @Published var isModelLoaded = false
+    @Published var modelLoadError: String?
 
     private var currentResponse = ""
-    private let webSocketService: WebSocketService
+    private let llmService = LocalLLMService()
+    private let ragService = OnDeviceRAGService()
+    private let searchService = WebSearchService()
+    private var generationTask: Task<Void, Never>?
 
-    init(host: String = "localhost", port: Int = 8000) {
-        self.host = host
-        self.port = port
-        self.webSocketService = WebSocketService(host: host, port: port)
-        self.webSocketService.delegate = self
-        self.webSocketService.connect()
+    func loadModel(path: String) async {
+        do {
+            try llmService.load(path: path)
+            isModelLoaded = true
+        } catch {
+            modelLoadError = error.localizedDescription
+        }
     }
 
     func sendMessage() {
         let text = currentInput.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !text.isEmpty, !isStreaming else { return }
+        guard !text.isEmpty, !isStreaming, isModelLoaded else { return }
 
-        // Add user message
         let userMessage = ChatMessage(role: .user, content: text)
         messages.append(userMessage)
         currentInput = ""
 
-        // Prepare message history for the backend
-        let history = messages.map { (role: $0.role.rawValue, content: $0.content) }
-
-        // Start streaming
         isStreaming = true
         currentResponse = ""
+        messages.append(ChatMessage(role: .assistant, content: ""))
 
-        // Add placeholder for assistant response
-        let assistantMessage = ChatMessage(role: .assistant, content: "")
-        messages.append(assistantMessage)
+        generationTask = Task {
+            var systemPrompt: String?
 
-        webSocketService.sendChatRequest(messages: history, webSearch: webSearchEnabled, rag: ragEnabled)
-    }
+            // Web search context
+            if webSearchEnabled {
+                let searchContext = await searchService.search(query: text)
+                if !searchContext.isEmpty {
+                    systemPrompt = searchContext
+                }
+            }
 
-    func reconnect() {
-        webSocketService.connect()
-    }
+            // RAG context
+            if ragEnabled {
+                let chunks = ragService.search(query: text)
+                let ragContext = ragService.formatContext(chunks: chunks)
+                if !ragContext.isEmpty {
+                    systemPrompt = (systemPrompt ?? "") + "\n\n" + ragContext
+                }
+            }
 
-    func fetchDocuments() async {
-        guard let url = URL(string: "http://\(host):\(port)/api/documents/") else { return }
-        do {
-            let (data, _) = try await URLSession.shared.data(from: url)
-            let docs = try JSONDecoder().decode([DocumentInfo].self, from: data)
-            loadedDocuments = docs
-        } catch {
-            // Silently handle — documents list is non-critical
+            // Build chat prompt (exclude the empty assistant placeholder)
+            let history = messages.dropLast().map { (role: $0.role.rawValue, content: $0.content) }
+            let prompt = LocalLLMService.formatChat(messages: history, systemPrompt: systemPrompt)
+
+            for await token in llmService.generate(prompt: prompt) {
+                appendToCurrentResponse(token)
+            }
+
+            isStreaming = false
+            currentResponse = ""
         }
     }
 
-    func uploadDocument(data: Data, filename: String) async {
-        guard let url = URL(string: "http://\(host):\(port)/api/documents/upload") else { return }
+    func stopGeneration() {
+        generationTask?.cancel()
+        isStreaming = false
+        currentResponse = ""
+    }
 
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        let boundary = UUID().uuidString
-        request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
+    func refreshDocuments() {
+        loadedDocuments = ragService.listDocuments().map {
+            DocumentInfo(filename: $0.filename, chunkCount: $0.chunkCount)
+        }
+    }
 
-        var body = Data()
-        body.append("--\(boundary)\r\n".data(using: .utf8)!)
-        body.append("Content-Disposition: form-data; name=\"file\"; filename=\"\(filename)\"\r\n".data(using: .utf8)!)
-        body.append("Content-Type: application/octet-stream\r\n\r\n".data(using: .utf8)!)
-        body.append(data)
-        body.append("\r\n--\(boundary)--\r\n".data(using: .utf8)!)
-
-        request.httpBody = body
-
+    func uploadDocument(data: Data, filename: String) {
         do {
-            let (_, _) = try await URLSession.shared.data(for: request)
-            await fetchDocuments()
+            _ = try ragService.ingestDocument(data: data, filename: filename)
+            refreshDocuments()
         } catch {
             messages.append(ChatMessage(role: .system, content: "Upload failed: \(error.localizedDescription)"))
         }
     }
 
-    func deleteDocument(filename: String) async {
-        guard let url = URL(string: "http://\(host):\(port)/api/documents/\(filename)") else { return }
-        var request = URLRequest(url: url)
-        request.httpMethod = "DELETE"
-        do {
-            let (_, _) = try await URLSession.shared.data(for: request)
-            await fetchDocuments()
-        } catch {
-            // Silently handle
-        }
+    func deleteDocument(filename: String) {
+        ragService.deleteDocument(filename: filename)
+        refreshDocuments()
     }
 
     private func appendToCurrentResponse(_ token: String) {
@@ -114,51 +112,6 @@ class ChatViewModel: ObservableObject {
                 role: .assistant,
                 content: currentResponse
             )
-        }
-    }
-}
-
-extension ChatViewModel: WebSocketServiceDelegate {
-    nonisolated func didReceiveToken(_ token: String) {
-        Task { @MainActor in
-            appendToCurrentResponse(token)
-        }
-    }
-
-    nonisolated func didReceiveSearchResults(_ results: String) {
-        // Search results are used by the backend as context
-    }
-
-    nonisolated func didReceiveRAGContext(_ context: String) {
-        // RAG context is used by the backend; no client-side action needed
-    }
-
-    nonisolated func didFinishResponse() {
-        Task { @MainActor in
-            isStreaming = false
-            currentResponse = ""
-        }
-    }
-
-    nonisolated func didReceiveError(_ error: String) {
-        Task { @MainActor in
-            isStreaming = false
-            if !messages.isEmpty && messages.last?.role == .assistant && messages.last?.content.isEmpty == true {
-                messages.removeLast()
-            }
-            messages.append(ChatMessage(role: .system, content: "Error: \(error)"))
-        }
-    }
-
-    nonisolated func didConnect() {
-        Task { @MainActor in
-            isConnected = true
-        }
-    }
-
-    nonisolated func didDisconnect() {
-        Task { @MainActor in
-            isConnected = false
         }
     }
 }

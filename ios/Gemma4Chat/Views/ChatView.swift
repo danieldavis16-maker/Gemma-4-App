@@ -1,33 +1,30 @@
 import SwiftUI
 
 struct ChatView: View {
-    let host: String
-    let port: Int
-
-    @StateObject private var viewModel: ChatViewModel
-
-    init(host: String = "localhost", port: Int = 8000) {
-        self.host = host
-        self.port = port
-        _viewModel = StateObject(wrappedValue: ChatViewModel(host: host, port: port))
-    }
+    let modelPath: String
+    @StateObject private var viewModel = ChatViewModel()
 
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                // Connection status
-                if !viewModel.isConnected {
-                    HStack {
-                        Image(systemName: "wifi.slash")
-                        Text("Disconnected")
+                // Model loading status
+                if !viewModel.isModelLoaded {
+                    HStack(spacing: 8) {
+                        ProgressView()
+                            .scaleEffect(0.8)
+                        Text("Loading model...")
                             .font(.caption)
-                        Button("Retry") { viewModel.reconnect() }
-                            .font(.caption)
-                            .buttonStyle(.bordered)
                     }
                     .padding(8)
                     .frame(maxWidth: .infinity)
-                    .background(Color.orange.opacity(0.2))
+                    .background(Color.blue.opacity(0.2))
+                }
+
+                if let error = viewModel.modelLoadError {
+                    Text("Error: \(error)")
+                        .font(.caption)
+                        .foregroundColor(.red)
+                        .padding(8)
                 }
 
                 // Messages
@@ -64,12 +61,20 @@ struct ChatView: View {
                         .background(Color(.systemGray6))
                         .cornerRadius(20)
 
-                    Button(action: { viewModel.sendMessage() }) {
-                        Image(systemName: "arrow.up.circle.fill")
-                            .font(.system(size: 32))
-                            .foregroundColor(canSend ? .blue : .gray)
+                    if viewModel.isStreaming {
+                        Button(action: { viewModel.stopGeneration() }) {
+                            Image(systemName: "stop.circle.fill")
+                                .font(.system(size: 32))
+                                .foregroundColor(.red)
+                        }
+                    } else {
+                        Button(action: { viewModel.sendMessage() }) {
+                            Image(systemName: "arrow.up.circle.fill")
+                                .font(.system(size: 32))
+                                .foregroundColor(canSend ? .blue : .gray)
+                        }
+                        .disabled(!canSend)
                     }
-                    .disabled(!canSend)
                 }
                 .padding(.horizontal, 12)
                 .padding(.vertical, 8)
@@ -89,12 +94,15 @@ struct ChatView: View {
             .sheet(isPresented: $viewModel.showDocumentsSheet) {
                 DocumentsSheet(viewModel: viewModel)
             }
+            .task {
+                await viewModel.loadModel(path: modelPath)
+            }
         }
     }
 
     private var canSend: Bool {
         !viewModel.currentInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             && !viewModel.isStreaming
-            && viewModel.isConnected
+            && viewModel.isModelLoaded
     }
 }

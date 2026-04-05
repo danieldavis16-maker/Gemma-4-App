@@ -2,36 +2,15 @@ import SwiftUI
 
 @main
 struct Gemma4ChatApp: App {
-    @AppStorage("serverHost") private var serverHost = ""
-    @AppStorage("serverPort") private var serverPort = "8000"
-    @State private var isConfigured = false
+    @StateObject private var modelManager = ModelManager()
 
     var body: some Scene {
         WindowGroup {
-            if isConfigured {
-                ChatView(host: serverHost, port: Int(serverPort) ?? 8000)
-                    .toolbar {
-                        ToolbarItem(placement: .topBarLeading) {
-                            Button {
-                                isConfigured = false
-                            } label: {
-                                Image(systemName: "gear")
-                            }
-                        }
-                    }
+            if modelManager.isDownloaded {
+                ChatView(modelPath: modelManager.modelPath.path)
             } else {
-                ServerSetupView(
-                    serverHost: $serverHost,
-                    serverPort: $serverPort,
-                    onConnect: { isConfigured = true }
-                )
+                ModelDownloadView(modelManager: modelManager)
             }
         }
-    }
-
-    init() {
-        // Auto-connect if we already have a saved host
-        let saved = UserDefaults.standard.string(forKey: "serverHost") ?? ""
-        _isConfigured = State(initialValue: !saved.isEmpty)
     }
 }

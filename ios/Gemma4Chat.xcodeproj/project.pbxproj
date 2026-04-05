@@ -9,31 +9,37 @@
 /* Begin PBXBuildFile section */
 		A1000001 /* Gemma4ChatApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000001 /* Gemma4ChatApp.swift */; };
 		A1000002 /* ChatMessage.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000002 /* ChatMessage.swift */; };
-		A1000003 /* WebSocketService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000003 /* WebSocketService.swift */; };
 		A1000004 /* ChatViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000004 /* ChatViewModel.swift */; };
 		A1000005 /* ChatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000005 /* ChatView.swift */; };
 		A1000006 /* MessageBubble.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000006 /* MessageBubble.swift */; };
 		A1000007 /* SearchToggle.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000007 /* SearchToggle.swift */; };
 		A1000008 /* RAGToggle.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000008 /* RAGToggle.swift */; };
 		A1000009 /* DocumentsSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000009 /* DocumentsSheet.swift */; };
-		A1000012 /* ServerSetupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000012 /* ServerSetupView.swift */; };
 		A1000010 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B1000010 /* Assets.xcassets */; };
 		A1000011 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B1000011 /* Preview Assets.xcassets */; };
+		A1000020 /* LocalLLMService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000020 /* LocalLLMService.swift */; };
+		A1000021 /* ModelManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000021 /* ModelManager.swift */; };
+		A1000022 /* OnDeviceRAGService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000022 /* OnDeviceRAGService.swift */; };
+		A1000023 /* WebSearchService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000023 /* WebSearchService.swift */; };
+		A1000024 /* ModelDownloadView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000024 /* ModelDownloadView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		B1000001 /* Gemma4ChatApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Gemma4ChatApp.swift; sourceTree = "<group>"; };
 		B1000002 /* ChatMessage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatMessage.swift; sourceTree = "<group>"; };
-		B1000003 /* WebSocketService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebSocketService.swift; sourceTree = "<group>"; };
 		B1000004 /* ChatViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatViewModel.swift; sourceTree = "<group>"; };
 		B1000005 /* ChatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatView.swift; sourceTree = "<group>"; };
 		B1000006 /* MessageBubble.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageBubble.swift; sourceTree = "<group>"; };
 		B1000007 /* SearchToggle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchToggle.swift; sourceTree = "<group>"; };
 		B1000008 /* RAGToggle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RAGToggle.swift; sourceTree = "<group>"; };
 		B1000009 /* DocumentsSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentsSheet.swift; sourceTree = "<group>"; };
-		B1000012 /* ServerSetupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServerSetupView.swift; sourceTree = "<group>"; };
 		B1000010 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		B1000011 /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
+		B1000020 /* LocalLLMService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalLLMService.swift; sourceTree = "<group>"; };
+		B1000021 /* ModelManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelManager.swift; sourceTree = "<group>"; };
+		B1000022 /* OnDeviceRAGService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnDeviceRAGService.swift; sourceTree = "<group>"; };
+		B1000023 /* WebSearchService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebSearchService.swift; sourceTree = "<group>"; };
+		B1000024 /* ModelDownloadView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelDownloadView.swift; sourceTree = "<group>"; };
 		C1000001 /* Gemma4Chat.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Gemma4Chat.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -81,7 +87,10 @@
 		E1000004 /* Services */ = {
 			isa = PBXGroup;
 			children = (
-				B1000003 /* WebSocketService.swift */,
+				B1000020 /* LocalLLMService.swift */,
+				B1000021 /* ModelManager.swift */,
+				B1000022 /* OnDeviceRAGService.swift */,
+				B1000023 /* WebSearchService.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -102,7 +111,7 @@
 				B1000007 /* SearchToggle.swift */,
 				B1000008 /* RAGToggle.swift */,
 				B1000009 /* DocumentsSheet.swift */,
-				B1000012 /* ServerSetupView.swift */,
+				B1000024 /* ModelDownloadView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -139,6 +148,9 @@
 			dependencies = (
 			);
 			name = Gemma4Chat;
+			packageProductDependencies = (
+				P2000001 /* llama */,
+			);
 			productName = Gemma4Chat;
 			productReference = C1000001 /* Gemma4Chat.app */;
 			productType = "com.apple.product-type.application";
@@ -167,6 +179,9 @@
 				Base,
 			);
 			mainGroup = E1000001;
+			packageReferences = (
+				P1000001 /* XCRemoteSwiftPackageReference "llama.cpp" */,
+			);
 			productRefGroup = E1000008 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
@@ -195,14 +210,17 @@
 			files = (
 				A1000001 /* Gemma4ChatApp.swift in Sources */,
 				A1000002 /* ChatMessage.swift in Sources */,
-				A1000003 /* WebSocketService.swift in Sources */,
 				A1000004 /* ChatViewModel.swift in Sources */,
 				A1000005 /* ChatView.swift in Sources */,
 				A1000006 /* MessageBubble.swift in Sources */,
 				A1000007 /* SearchToggle.swift in Sources */,
 				A1000008 /* RAGToggle.swift in Sources */,
 				A1000009 /* DocumentsSheet.swift in Sources */,
-				A1000012 /* ServerSetupView.swift in Sources */,
+				A1000020 /* LocalLLMService.swift in Sources */,
+				A1000021 /* ModelManager.swift in Sources */,
+				A1000022 /* OnDeviceRAGService.swift in Sources */,
+				A1000023 /* WebSearchService.swift in Sources */,
+				A1000024 /* ModelDownloadView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -404,6 +422,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		P1000001 /* XCRemoteSwiftPackageReference "llama.cpp" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/ggerganov/llama.cpp";
+			requirement = {
+				kind = branch;
+				branch = master;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		P2000001 /* llama */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = P1000001 /* XCRemoteSwiftPackageReference "llama.cpp" */;
+			productName = llama;
+		};
+/* End XCSwiftPackageProductDependency section */
 
 	};
 	rootObject = F0000001 /* Project object */;

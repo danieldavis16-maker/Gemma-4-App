@@ -22,7 +22,7 @@ struct DocumentsSheet: View {
                             VStack(alignment: .leading) {
                                 Text(doc.filename)
                                     .font(.body)
-                                Text("\(doc.chunk_count) chunks")
+                                Text("\(doc.chunkCount) chunks")
                                     .font(.caption)
                                     .foregroundColor(.secondary)
                             }
@@ -30,8 +30,7 @@ struct DocumentsSheet: View {
                     }
                     .onDelete { indexSet in
                         for index in indexSet {
-                            let filename = viewModel.loadedDocuments[index].filename
-                            Task { await viewModel.deleteDocument(filename: filename) }
+                            viewModel.deleteDocument(filename: viewModel.loadedDocuments[index].filename)
                         }
                     }
                 }
@@ -63,14 +62,14 @@ struct DocumentsSheet: View {
                     let accessing = url.startAccessingSecurityScopedResource()
                     defer { if accessing { url.stopAccessingSecurityScopedResource() } }
                     if let data = try? Data(contentsOf: url) {
-                        Task { await viewModel.uploadDocument(data: data, filename: url.lastPathComponent) }
+                        viewModel.uploadDocument(data: data, filename: url.lastPathComponent)
                     }
                 case .failure:
                     break
                 }
             }
-            .task {
-                await viewModel.fetchDocuments()
+            .onAppear {
+                viewModel.refreshDocuments()
             }
         }
     }
