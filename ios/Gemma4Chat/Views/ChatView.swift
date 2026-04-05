@@ -1,7 +1,16 @@
 import SwiftUI
 
 struct ChatView: View {
-    @StateObject private var viewModel = ChatViewModel()
+    let host: String
+    let port: Int
+
+    @StateObject private var viewModel: ChatViewModel
+
+    init(host: String = "localhost", port: Int = 8000) {
+        self.host = host
+        self.port = port
+        _viewModel = StateObject(wrappedValue: ChatViewModel(host: host, port: port))
+    }
 
     var body: some View {
         NavigationStack {

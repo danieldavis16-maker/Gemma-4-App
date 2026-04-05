@@ -16,6 +16,7 @@
 		A1000007 /* SearchToggle.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000007 /* SearchToggle.swift */; };
 		A1000008 /* RAGToggle.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000008 /* RAGToggle.swift */; };
 		A1000009 /* DocumentsSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000009 /* DocumentsSheet.swift */; };
+		A1000012 /* ServerSetupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000012 /* ServerSetupView.swift */; };
 		A1000010 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B1000010 /* Assets.xcassets */; };
 		A1000011 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B1000011 /* Preview Assets.xcassets */; };
 /* End PBXBuildFile section */
@@ -30,6 +31,7 @@
 		B1000007 /* SearchToggle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchToggle.swift; sourceTree = "<group>"; };
 		B1000008 /* RAGToggle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RAGToggle.swift; sourceTree = "<group>"; };
 		B1000009 /* DocumentsSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentsSheet.swift; sourceTree = "<group>"; };
+		B1000012 /* ServerSetupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServerSetupView.swift; sourceTree = "<group>"; };
 		B1000010 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		B1000011 /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
 		C1000001 /* Gemma4Chat.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Gemma4Chat.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -100,6 +102,7 @@
 				B1000007 /* SearchToggle.swift */,
 				B1000008 /* RAGToggle.swift */,
 				B1000009 /* DocumentsSheet.swift */,
+				B1000012 /* ServerSetupView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -199,6 +202,7 @@
 				A1000007 /* SearchToggle.swift in Sources */,
 				A1000008 /* RAGToggle.swift in Sources */,
 				A1000009 /* DocumentsSheet.swift in Sources */,
+				A1000012 /* ServerSetupView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
