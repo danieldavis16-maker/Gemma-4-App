@@ -82,13 +82,11 @@ class ChatViewModel: ObservableObject {
 
         // Build user message content
         var userContent = text
-        if let image = pendingImage {
-            // Encode image as base64 for the prompt
-            if let jpegData = image.jpegData(compressionQuality: 0.6) {
-                let base64 = jpegData.base64EncodedString()
-                let imageTag = "[image: data:image/jpeg;base64,\(base64)]"
-                userContent = userContent.isEmpty ? imageTag : "\(imageTag)\n\(userContent)"
-            }
+        if pendingImage != nil {
+            // Note: True multimodal vision requires llava clip encoder integration.
+            // For now, note the image attachment in the message.
+            let imageNote = "[User attached an image]"
+            userContent = userContent.isEmpty ? imageNote : "\(userContent)\n\(imageNote)"
             pendingImage = nil
         }
 
