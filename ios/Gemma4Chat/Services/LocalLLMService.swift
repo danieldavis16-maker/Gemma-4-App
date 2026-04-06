@@ -65,10 +65,15 @@ class LocalLLMService {
                 defer { continuation.finish() }
                 guard let self, let model = self.model, let ctx = self.context else { return }
 
-                llama_kv_cache_clear(ctx)
+                let vocab = llama_model_get_vocab(model)
+                guard let vocab else { return }
+
+                // Clear KV cache
+                let memory = llama_get_memory(ctx)
+                llama_memory_clear(memory, true)
 
                 // Tokenize prompt
-                var tokens = self.tokenize(prompt, addBOS: true)
+                var tokens = self.tokenize(vocab: vocab, text: prompt, addBOS: true)
                 guard !tokens.isEmpty else { return }
 
                 // Decode prompt
@@ -92,9 +97,9 @@ class LocalLLMService {
 
                     let token = llama_sampler_sample(sampler, ctx, -1)
 
-                    if llama_token_is_eog(model, token) { break }
+                    if llama_vocab_is_eog(vocab, token) { break }
 
-                    let piece = self.tokenToPiece(token, buffer: &utf8Buffer)
+                    let piece = self.tokenToPiece(vocab: vocab, token: token, buffer: &utf8Buffer)
                     if !piece.isEmpty {
                         continuation.yield(piece)
                     }
@@ -142,22 +147,20 @@ class LocalLLMService {
 
     // MARK: - Private
 
-    private func tokenize(_ text: String, addBOS: Bool) -> [llama_token] {
-        guard let model else { return [] }
+    private func tokenize(vocab: OpaquePointer, text: String, addBOS: Bool) -> [llama_token] {
         let maxTokens = Int32(text.utf8.count) + (addBOS ? 1 : 0) + 1
         var tokens = [llama_token](repeating: 0, count: Int(maxTokens))
-        let n = llama_tokenize(model, text, Int32(text.utf8.count), &tokens, maxTokens, addBOS, true)
+        let n = llama_tokenize(vocab, text, Int32(text.utf8.count), &tokens, maxTokens, addBOS, true)
         guard n > 0 else { return [] }
         return Array(tokens.prefix(Int(n)))
     }
 
-    private func tokenToPiece(_ token: llama_token, buffer: inout Data) -> String {
-        guard let model else { return "" }
+    private func tokenToPiece(vocab: OpaquePointer, token: llama_token, buffer: inout Data) -> String {
         var buf = [CChar](repeating: 0, count: 64)
-        var n = llama_token_to_piece(model, token, &buf, 64, 0, false)
+        var n = llama_token_to_piece(vocab, token, &buf, 64, 0, false)
         if n < 0 {
             buf = [CChar](repeating: 0, count: Int(-n) + 1)
-            n = llama_token_to_piece(model, token, &buf, Int32(buf.count), 0, false)
+            n = llama_token_to_piece(vocab, token, &buf, Int32(buf.count), 0, false)
         }
         guard n > 0 else { return "" }
 
