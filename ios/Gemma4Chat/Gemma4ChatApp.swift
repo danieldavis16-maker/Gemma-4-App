@@ -6,10 +6,15 @@ struct Gemma4ChatApp: App {
 
     var body: some Scene {
         WindowGroup {
-            if modelManager.isDownloaded {
-                ChatView(modelPath: modelManager.modelPath.path)
-            } else {
-                ModelDownloadView(modelManager: modelManager)
+            Group {
+                if modelManager.isDownloaded {
+                    ChatView(modelPath: modelManager.modelPath.path)
+                } else {
+                    ModelDownloadView(modelManager: modelManager)
+                }
+            }
+            .onAppear {
+                modelManager.checkModel()
             }
         }
     }
