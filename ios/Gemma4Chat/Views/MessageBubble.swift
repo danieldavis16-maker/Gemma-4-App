@@ -11,12 +11,18 @@ struct MessageBubble: View {
             if message.isUser { Spacer() }
 
             VStack(alignment: message.isUser ? .trailing : .leading, spacing: 4) {
-                Text(message.content)
-                    .padding(12)
-                    .background(backgroundColor)
-                    .foregroundColor(textColor)
-                    .cornerRadius(16)
-                    .contextMenu {
+                Group {
+                    if message.role == .assistant && !message.content.isEmpty {
+                        MarkdownText(text: message.content, foregroundColor: textColor)
+                    } else {
+                        Text(message.content)
+                    }
+                }
+                .padding(12)
+                .background(backgroundColor)
+                .foregroundColor(textColor)
+                .cornerRadius(16)
+                .contextMenu {
                         Button {
                             UIPasteboard.general.string = message.content
                         } label: {

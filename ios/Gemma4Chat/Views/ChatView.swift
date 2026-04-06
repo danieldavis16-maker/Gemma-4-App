@@ -81,6 +81,14 @@ struct ChatView: View {
                                     onRegenerate: { viewModel.regenerateLastResponse() }
                                 )
                                 .id(message.id)
+
+                                // Show RAG sources after last assistant message
+                                if message.id == viewModel.messages.last?.id
+                                    && message.role == .assistant
+                                    && !viewModel.isStreaming
+                                    && !viewModel.lastRAGSources.isEmpty {
+                                    RAGSourcesView(sources: viewModel.lastRAGSources)
+                                }
                             }
                         }
                         .padding(.vertical, 8)

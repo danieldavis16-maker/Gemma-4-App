@@ -45,7 +45,10 @@ class ModelManager: NSObject, ObservableObject {
     private var continuation: CheckedContinuation<Void, Error>?
     private var downloadingFilename: String = ""
     private lazy var session: URLSession = {
-        URLSession(configuration: .default, delegate: self, delegateQueue: .main)
+        let config = URLSessionConfiguration.background(withIdentifier: "com.gemma4chat.modeldownload")
+        config.isDiscretionary = false
+        config.sessionSendsLaunchEvents = true
+        return URLSession(configuration: config, delegate: self, delegateQueue: .main)
     }()
 
     var selectedModel: ModelOption? {

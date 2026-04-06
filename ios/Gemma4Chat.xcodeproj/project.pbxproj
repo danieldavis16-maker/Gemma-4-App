@@ -26,6 +26,8 @@
 		A1000031 /* SettingsSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000031 /* SettingsSheet.swift */; };
 		A1000032 /* HistorySheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000032 /* HistorySheet.swift */; };
 		A1000033 /* ImagePicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000033 /* ImagePicker.swift */; };
+		A1000034 /* MarkdownText.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000034 /* MarkdownText.swift */; };
+		A1000035 /* RAGSourcesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000035 /* RAGSourcesView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -48,6 +50,8 @@
 		B1000031 /* SettingsSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsSheet.swift; sourceTree = "<group>"; };
 		B1000032 /* HistorySheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistorySheet.swift; sourceTree = "<group>"; };
 		B1000033 /* ImagePicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImagePicker.swift; sourceTree = "<group>"; };
+		B1000034 /* MarkdownText.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownText.swift; sourceTree = "<group>"; };
+		B1000035 /* RAGSourcesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RAGSourcesView.swift; sourceTree = "<group>"; };
 		C1000001 /* Gemma4Chat.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Gemma4Chat.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -124,6 +128,8 @@
 				B1000031 /* SettingsSheet.swift */,
 				B1000032 /* HistorySheet.swift */,
 				B1000033 /* ImagePicker.swift */,
+				B1000034 /* MarkdownText.swift */,
+				B1000035 /* RAGSourcesView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -231,6 +237,8 @@
 				A1000031 /* SettingsSheet.swift in Sources */,
 				A1000032 /* HistorySheet.swift in Sources */,
 				A1000033 /* ImagePicker.swift in Sources */,
+				A1000034 /* MarkdownText.swift in Sources */,
+				A1000035 /* RAGSourcesView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

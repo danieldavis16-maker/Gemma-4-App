@@ -8,6 +8,12 @@ struct DocumentInfo: Identifiable {
     let chunkCount: Int
 }
 
+struct RAGSource: Identifiable {
+    let id = UUID()
+    let filename: String
+    let excerpt: String
+}
+
 @MainActor
 class ChatViewModel: ObservableObject {
     // Chat state
@@ -36,6 +42,9 @@ class ChatViewModel: ObservableObject {
     // Token speed
     @Published var tokensPerSecond: Double = 0
     @Published var tokenCount: Int = 0
+
+    // RAG sources for last response
+    @Published var lastRAGSources: [RAGSource] = []
 
     // Image input
     @Published var pendingImage: UIImage?
@@ -135,12 +144,19 @@ class ChatViewModel: ObservableObject {
             }
 
             // RAG context
+            lastRAGSources = []
             if ragEnabled {
                 if let lastUser = messages.last(where: { $0.role == .user }) {
                     let chunks = ragService.search(query: lastUser.content)
                     let ragContext = ragService.formatContext(chunks: chunks)
                     if !ragContext.isEmpty {
                         systemPrompt = (systemPrompt ?? "") + "\n\n" + ragContext
+                        lastRAGSources = chunks.map {
+                            RAGSource(
+                                filename: $0.filename,
+                                excerpt: String($0.content.prefix(120))
+                            )
+                        }
                     }
                 }
             }
