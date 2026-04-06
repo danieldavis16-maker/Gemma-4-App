@@ -10,9 +10,7 @@ struct AskGemmaIntent: AppIntent {
     var question: String
 
     func perform() async throws -> some IntentResult & ProvidesDialog {
-        // Store the question so the app can pick it up
         UserDefaults.standard.set(question, forKey: "siriQuestion")
-
         return .result(dialog: "Opening Gemma to answer: \(question)")
     }
 }
@@ -22,9 +20,9 @@ struct GemmaShortcuts: AppShortcutsProvider {
         AppShortcut(
             intent: AskGemmaIntent(),
             phrases: [
-                "Ask \(.applicationName) \(\.$question)",
-                "Ask \(.applicationName)",
+                "Ask \(.applicationName) something",
                 "Chat with \(.applicationName)",
+                "Open \(.applicationName)",
             ],
             shortTitle: "Ask Gemma",
             systemImageName: "bubble.left.fill"
