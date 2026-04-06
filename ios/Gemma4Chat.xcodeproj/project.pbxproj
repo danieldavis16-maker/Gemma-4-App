@@ -148,9 +148,6 @@
 			dependencies = (
 			);
 			name = Gemma4Chat;
-			packageProductDependencies = (
-				P2000001 /* llama */,
-			);
 			productName = Gemma4Chat;
 			productReference = C1000001 /* Gemma4Chat.app */;
 			productType = "com.apple.product-type.application";
@@ -179,9 +176,6 @@
 				Base,
 			);
 			mainGroup = E1000001;
-			packageReferences = (
-				P1000001 /* XCRemoteSwiftPackageReference "llama.cpp" */,
-			);
 			productRefGroup = E1000008 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
@@ -422,25 +416,6 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
-
-/* Begin XCRemoteSwiftPackageReference section */
-		P1000001 /* XCRemoteSwiftPackageReference "llama.cpp" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/ggerganov/llama.cpp";
-			requirement = {
-				kind = branch;
-				branch = master;
-			};
-		};
-/* End XCRemoteSwiftPackageReference section */
-
-/* Begin XCSwiftPackageProductDependency section */
-		P2000001 /* llama */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = P1000001 /* XCRemoteSwiftPackageReference "llama.cpp" */;
-			productName = llama;
-		};
-/* End XCSwiftPackageProductDependency section */
 
 	};
 	rootObject = F0000001 /* Project object */;
