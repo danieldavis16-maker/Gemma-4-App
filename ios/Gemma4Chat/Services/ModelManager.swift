@@ -8,8 +8,8 @@ class ModelManager: NSObject, ObservableObject {
     @Published var error: String?
     @Published var statusText = ""
 
-    static let modelFilename = "gemma-3-1b-it-Q4_K_M.gguf"
-    static let modelURL = URL(string: "https://huggingface.co/bartowski/gemma-3-1b-it-GGUF/resolve/main/gemma-3-1b-it-Q4_K_M.gguf")!
+    static let modelFilename = "google_gemma-3-1b-it-Q4_K_M.gguf"
+    static let modelURL = URL(string: "https://huggingface.co/bartowski/google_gemma-3-1b-it-GGUF/resolve/main/google_gemma-3-1b-it-Q4_K_M.gguf")!
 
     var modelPath: URL {
         FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
@@ -23,7 +23,15 @@ class ModelManager: NSObject, ObservableObject {
     }()
 
     func checkModel() {
-        isDownloaded = FileManager.default.fileExists(atPath: modelPath.path)
+        // Verify file exists and is a reasonable size (>100MB = likely valid GGUF)
+        if let attrs = try? FileManager.default.attributesOfItem(atPath: modelPath.path),
+           let size = attrs[.size] as? Int64, size > 100_000_000 {
+            isDownloaded = true
+        } else {
+            // Remove any corrupted/partial downloads
+            try? FileManager.default.removeItem(at: modelPath)
+            isDownloaded = false
+        }
     }
 
     func downloadModel() async {
