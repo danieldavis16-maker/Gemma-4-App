@@ -49,6 +49,9 @@ class ChatViewModel: ObservableObject {
     // Image input
     @Published var pendingImage: UIImage?
 
+    // Voice chat
+    let voiceService = VoiceChatService()
+
     // RAG documents
     @Published var loadedDocuments: [DocumentInfo] = []
 
@@ -63,6 +66,24 @@ class ChatViewModel: ObservableObject {
     init() {
         conversations = store.loadAll()
         settings = store.loadSettings()
+    }
+
+    func checkSiriQuestion() {
+        if let question = UserDefaults.standard.string(forKey: "siriQuestion"), !question.isEmpty {
+            UserDefaults.standard.removeObject(forKey: "siriQuestion")
+            currentInput = question
+            // Auto-send after model loads
+            Task {
+                while !isModelLoaded { try? await Task.sleep(nanoseconds: 200_000_000) }
+                sendMessage()
+            }
+        }
+    }
+
+    func speakLastResponse() {
+        guard let lastAssistant = messages.last(where: { $0.role == .assistant }),
+              !lastAssistant.content.isEmpty else { return }
+        voiceService.speak(text: lastAssistant.content)
     }
 
     func loadModel(path: String) async {

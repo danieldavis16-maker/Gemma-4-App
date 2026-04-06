@@ -5,6 +5,7 @@ struct MessageBubble: View {
     var isLastAssistant: Bool = false
     var isStreaming: Bool = false
     var onRegenerate: (() -> Void)?
+    var onSpeak: (() -> Void)?
 
     var body: some View {
         HStack {
@@ -51,6 +52,13 @@ struct MessageBubble: View {
                         .foregroundColor(.secondary)
 
                     if isLastAssistant && !isStreaming && !message.content.isEmpty {
+                        Button {
+                            onSpeak?()
+                        } label: {
+                            Image(systemName: "speaker.wave.2")
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+                        }
                         Button {
                             onRegenerate?()
                         } label: {

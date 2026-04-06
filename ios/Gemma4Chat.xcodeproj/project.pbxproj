@@ -28,6 +28,9 @@
 		A1000033 /* ImagePicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000033 /* ImagePicker.swift */; };
 		A1000034 /* MarkdownText.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000034 /* MarkdownText.swift */; };
 		A1000035 /* RAGSourcesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000035 /* RAGSourcesView.swift */; };
+		A1000036 /* VoiceChatService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000036 /* VoiceChatService.swift */; };
+		A1000037 /* AskGemmaIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000037 /* AskGemmaIntent.swift */; };
+		A1000038 /* GemmaWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000038 /* GemmaWidget.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -52,6 +55,9 @@
 		B1000033 /* ImagePicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImagePicker.swift; sourceTree = "<group>"; };
 		B1000034 /* MarkdownText.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownText.swift; sourceTree = "<group>"; };
 		B1000035 /* RAGSourcesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RAGSourcesView.swift; sourceTree = "<group>"; };
+		B1000036 /* VoiceChatService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceChatService.swift; sourceTree = "<group>"; };
+		B1000037 /* AskGemmaIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AskGemmaIntent.swift; sourceTree = "<group>"; };
+		B1000038 /* GemmaWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GemmaWidget.swift; sourceTree = "<group>"; };
 		C1000001 /* Gemma4Chat.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Gemma4Chat.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -82,6 +88,7 @@
 				E1000004 /* Services */,
 				E1000005 /* ViewModels */,
 				E1000006 /* Views */,
+				E1000009 /* Widget */,
 				B1000010 /* Assets.xcassets */,
 				E1000007 /* Preview Content */,
 			);
@@ -104,6 +111,8 @@
 				B1000022 /* OnDeviceRAGService.swift */,
 				B1000023 /* WebSearchService.swift */,
 				B1000030 /* ConversationStore.swift */,
+				B1000036 /* VoiceChatService.swift */,
+				B1000037 /* AskGemmaIntent.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -132,6 +141,14 @@
 				B1000035 /* RAGSourcesView.swift */,
 			);
 			path = Views;
+			sourceTree = "<group>";
+		};
+		E1000009 /* Widget */ = {
+			isa = PBXGroup;
+			children = (
+				B1000038 /* GemmaWidget.swift */,
+			);
+			path = Widget;
 			sourceTree = "<group>";
 		};
 		E1000007 /* Preview Content */ = {
@@ -239,6 +256,9 @@
 				A1000033 /* ImagePicker.swift in Sources */,
 				A1000034 /* MarkdownText.swift in Sources */,
 				A1000035 /* RAGSourcesView.swift in Sources */,
+				A1000036 /* VoiceChatService.swift in Sources */,
+				A1000037 /* AskGemmaIntent.swift in Sources */,
+				A1000038 /* GemmaWidget.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -78,7 +78,8 @@ struct ChatView: View {
                                     message: message,
                                     isLastAssistant: isLast,
                                     isStreaming: viewModel.isStreaming,
-                                    onRegenerate: { viewModel.regenerateLastResponse() }
+                                    onRegenerate: { viewModel.regenerateLastResponse() },
+                                    onSpeak: { viewModel.speakLastResponse() }
                                 )
                                 .id(message.id)
 
@@ -102,6 +103,46 @@ struct ChatView: View {
                 }
 
                 Divider()
+
+                // Voice recording indicator
+                if viewModel.voiceService.isRecording {
+                    HStack(spacing: 8) {
+                        Circle()
+                            .fill(.red)
+                            .frame(width: 8, height: 8)
+                        Text("Listening...")
+                            .font(.caption)
+                        if !viewModel.voiceService.transcribedText.isEmpty {
+                            Text(viewModel.voiceService.transcribedText)
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                                .lineLimit(1)
+                        }
+                        Spacer()
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 6)
+                    .background(Color.red.opacity(0.08))
+                }
+
+                // Speaking indicator
+                if viewModel.voiceService.isSpeaking {
+                    HStack(spacing: 6) {
+                        Image(systemName: "speaker.wave.2.fill")
+                            .font(.caption2)
+                            .foregroundColor(.blue)
+                        Text("Speaking...")
+                            .font(.caption2)
+                        Spacer()
+                        Button("Stop") {
+                            viewModel.voiceService.stopSpeaking()
+                        }
+                        .font(.caption2)
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 4)
+                    .background(Color.blue.opacity(0.08))
+                }
 
                 // Pending image preview
                 if let img = viewModel.pendingImage {
@@ -161,13 +202,29 @@ struct ChatView: View {
                                 .font(.system(size: 32))
                                 .foregroundColor(.red)
                         }
-                    } else {
+                    } else if canSend {
                         Button(action: { viewModel.sendMessage() }) {
                             Image(systemName: "arrow.up.circle.fill")
                                 .font(.system(size: 32))
-                                .foregroundColor(canSend ? .blue : .gray)
+                                .foregroundColor(.blue)
                         }
-                        .disabled(!canSend)
+                    } else {
+                        // Microphone button when no text
+                        Button(action: {
+                            if viewModel.voiceService.isRecording {
+                                viewModel.voiceService.stopRecording()
+                                viewModel.currentInput = viewModel.voiceService.transcribedText
+                            } else {
+                                viewModel.voiceService.requestPermission()
+                                viewModel.voiceService.startRecording()
+                            }
+                        }) {
+                            Image(systemName: viewModel.voiceService.isRecording ? "mic.fill" : "mic")
+                                .font(.system(size: 24))
+                                .foregroundColor(viewModel.voiceService.isRecording ? .red : .blue)
+                                .frame(width: 32, height: 32)
+                        }
+                        .disabled(!viewModel.isModelLoaded)
                     }
                 }
                 .padding(.horizontal, 12)
@@ -223,6 +280,8 @@ struct ChatView: View {
             }
             .task {
                 await viewModel.loadModel(path: modelPath)
+                viewModel.voiceService.requestPermission()
+                viewModel.checkSiriQuestion()
             }
         }
     }
