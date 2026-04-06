@@ -9,21 +9,48 @@ struct DocumentInfo: Identifiable {
 
 @MainActor
 class ChatViewModel: ObservableObject {
+    // Chat state
     @Published var messages: [ChatMessage] = []
     @Published var isStreaming = false
-    @Published var webSearchEnabled = false
-    @Published var ragEnabled = false
     @Published var currentInput = ""
-    @Published var loadedDocuments: [DocumentInfo] = []
-    @Published var showDocumentsSheet = false
     @Published var isModelLoaded = false
     @Published var modelLoadError: String?
+
+    // Features
+    @Published var webSearchEnabled = false
+    @Published var ragEnabled = false
+
+    // Sheets
+    @Published var showDocumentsSheet = false
+    @Published var showSettingsSheet = false
+    @Published var showHistorySheet = false
+
+    // Conversation history
+    @Published var conversations: [Conversation] = []
+    @Published var currentConversationId: UUID?
+
+    // Settings
+    @Published var settings: LLMSettings = .default
+
+    // Token speed
+    @Published var tokensPerSecond: Double = 0
+    @Published var tokenCount: Int = 0
+
+    // RAG documents
+    @Published var loadedDocuments: [DocumentInfo] = []
 
     private var currentResponse = ""
     private let llmService = LocalLLMService()
     private let ragService = OnDeviceRAGService()
     private let searchService = WebSearchService()
+    private let store = ConversationStore()
     private var generationTask: Task<Void, Never>?
+    private var generationStartTime: Date?
+
+    init() {
+        conversations = store.loadAll()
+        settings = store.loadSettings()
+    }
 
     func loadModel(path: String) async {
         do {
@@ -34,56 +61,136 @@ class ChatViewModel: ObservableObject {
         }
     }
 
+    // MARK: - Messaging
+
     func sendMessage() {
         let text = currentInput.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty, !isStreaming, isModelLoaded else { return }
 
-        let userMessage = ChatMessage(role: .user, content: text)
-        messages.append(userMessage)
+        // Create conversation if needed
+        if currentConversationId == nil {
+            let conv = Conversation(title: String(text.prefix(40)))
+            conversations.insert(conv, at: 0)
+            currentConversationId = conv.id
+        }
+
+        messages.append(ChatMessage(role: .user, content: text))
         currentInput = ""
 
-        isStreaming = true
-        currentResponse = ""
-        messages.append(ChatMessage(role: .assistant, content: ""))
+        startGeneration()
+    }
 
-        generationTask = Task {
-            var systemPrompt: String?
-
-            // Web search context
-            if webSearchEnabled {
-                let searchContext = await searchService.search(query: text)
-                if !searchContext.isEmpty {
-                    systemPrompt = searchContext
-                }
-            }
-
-            // RAG context
-            if ragEnabled {
-                let chunks = ragService.search(query: text)
-                let ragContext = ragService.formatContext(chunks: chunks)
-                if !ragContext.isEmpty {
-                    systemPrompt = (systemPrompt ?? "") + "\n\n" + ragContext
-                }
-            }
-
-            // Build chat prompt (exclude the empty assistant placeholder)
-            let history = messages.dropLast().map { (role: $0.role.rawValue, content: $0.content) }
-            let prompt = LocalLLMService.formatChat(messages: history, systemPrompt: systemPrompt)
-
-            for await token in llmService.generate(prompt: prompt) {
-                appendToCurrentResponse(token)
-            }
-
-            isStreaming = false
-            currentResponse = ""
+    func regenerateLastResponse() {
+        guard !isStreaming, isModelLoaded else { return }
+        // Remove last assistant message
+        if let last = messages.last, last.role == .assistant {
+            messages.removeLast()
         }
+        startGeneration()
     }
 
     func stopGeneration() {
         generationTask?.cancel()
         isStreaming = false
         currentResponse = ""
+        tokensPerSecond = 0
+        saveCurrentConversation()
     }
+
+    private func startGeneration() {
+        isStreaming = true
+        currentResponse = ""
+        tokenCount = 0
+        tokensPerSecond = 0
+        generationStartTime = Date()
+        messages.append(ChatMessage(role: .assistant, content: ""))
+
+        generationTask = Task {
+            var systemPrompt: String? = settings.systemPrompt.isEmpty ? nil : settings.systemPrompt
+
+            // Web search context
+            if webSearchEnabled {
+                if let lastUser = messages.last(where: { $0.role == .user }) {
+                    let searchContext = await searchService.search(query: lastUser.content)
+                    if !searchContext.isEmpty {
+                        systemPrompt = (systemPrompt ?? "") + "\n\n" + searchContext
+                    }
+                }
+            }
+
+            // RAG context
+            if ragEnabled {
+                if let lastUser = messages.last(where: { $0.role == .user }) {
+                    let chunks = ragService.search(query: lastUser.content)
+                    let ragContext = ragService.formatContext(chunks: chunks)
+                    if !ragContext.isEmpty {
+                        systemPrompt = (systemPrompt ?? "") + "\n\n" + ragContext
+                    }
+                }
+            }
+
+            let history = messages.dropLast().map { (role: $0.role.rawValue, content: $0.content) }
+            let prompt = LocalLLMService.formatChat(messages: history, systemPrompt: systemPrompt)
+
+            for await token in llmService.generate(prompt: prompt, settings: settings) {
+                appendToCurrentResponse(token)
+                tokenCount += 1
+                if let start = generationStartTime {
+                    let elapsed = Date().timeIntervalSince(start)
+                    if elapsed > 0.5 {
+                        tokensPerSecond = Double(tokenCount) / elapsed
+                    }
+                }
+            }
+
+            isStreaming = false
+            currentResponse = ""
+            tokensPerSecond = 0
+            saveCurrentConversation()
+        }
+    }
+
+    // MARK: - Conversation History
+
+    func newConversation() {
+        saveCurrentConversation()
+        currentConversationId = nil
+        messages = []
+    }
+
+    func loadConversation(_ conversation: Conversation) {
+        saveCurrentConversation()
+        currentConversationId = conversation.id
+        messages = conversation.messages
+    }
+
+    func deleteConversation(_ conversation: Conversation) {
+        conversations.removeAll { $0.id == conversation.id }
+        if currentConversationId == conversation.id {
+            currentConversationId = nil
+            messages = []
+        }
+        store.saveAll(conversations)
+    }
+
+    func saveCurrentConversation() {
+        guard let id = currentConversationId,
+              let idx = conversations.firstIndex(where: { $0.id == id }) else { return }
+        conversations[idx].messages = messages
+        conversations[idx].updatedAt = Date()
+        if let firstUser = messages.first(where: { $0.role == .user }) {
+            conversations[idx].title = String(firstUser.content.prefix(40))
+        }
+        store.saveAll(conversations)
+    }
+
+    // MARK: - Settings
+
+    func saveSettings() {
+        store.saveSettings(settings)
+    }
+
+    // MARK: - Documents
 
     func refreshDocuments() {
         loadedDocuments = ragService.listDocuments().map {
@@ -105,10 +212,13 @@ class ChatViewModel: ObservableObject {
         refreshDocuments()
     }
 
+    // MARK: - Private
+
     private func appendToCurrentResponse(_ token: String) {
         currentResponse += token
         if !messages.isEmpty {
             messages[messages.count - 1] = ChatMessage(
+                id: messages[messages.count - 1].id,
                 role: .assistant,
                 content: currentResponse
             )

@@ -59,7 +59,7 @@ class LocalLLMService {
         model = nil
     }
 
-    func generate(prompt: String) -> AsyncStream<String> {
+    func generate(prompt: String, settings: LLMSettings = .default) -> AsyncStream<String> {
         AsyncStream { [weak self] continuation in
             let task = Task.detached(priority: .userInitiated) {
                 defer { continuation.finish() }
@@ -80,19 +80,19 @@ class LocalLLMService {
                 var batch = llama_batch_get_one(&tokens, Int32(tokens.count))
                 guard llama_decode(ctx, batch) == 0 else { return }
 
-                // Init sampler chain: temp -> top_k -> top_p -> dist
+                // Init sampler chain with configurable settings
                 let sparams = llama_sampler_chain_default_params()
                 guard let sampler = llama_sampler_chain_init(sparams) else { return }
                 defer { llama_sampler_free(sampler) }
 
-                llama_sampler_chain_add(sampler, llama_sampler_init_temp(0.7))
-                llama_sampler_chain_add(sampler, llama_sampler_init_top_k(40))
-                llama_sampler_chain_add(sampler, llama_sampler_init_top_p(0.9, 1))
+                llama_sampler_chain_add(sampler, llama_sampler_init_temp(settings.temperature))
+                llama_sampler_chain_add(sampler, llama_sampler_init_top_k(settings.topK))
+                llama_sampler_chain_add(sampler, llama_sampler_init_top_p(settings.topP, 1))
                 llama_sampler_chain_add(sampler, llama_sampler_init_dist(UInt32.random(in: 0...UInt32.max)))
 
                 var utf8Buffer = Data()
 
-                for _ in 0..<2048 {
+                for _ in 0..<settings.maxTokens {
                     if Task.isCancelled { break }
 
                     let token = llama_sampler_sample(sampler, ctx, -1)

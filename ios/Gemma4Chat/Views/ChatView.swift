@@ -27,23 +27,66 @@ struct ChatView: View {
                         .padding(8)
                 }
 
+                // Token speed indicator
+                if viewModel.isStreaming && viewModel.tokensPerSecond > 0 {
+                    HStack(spacing: 6) {
+                        Image(systemName: "bolt.fill")
+                            .font(.caption2)
+                            .foregroundColor(.green)
+                        Text(String(format: "%.1f tokens/sec", viewModel.tokensPerSecond))
+                            .font(.caption2)
+                            .monospacedDigit()
+                        Text("·")
+                            .font(.caption2)
+                        Text("\(viewModel.tokenCount) tokens")
+                            .font(.caption2)
+                            .monospacedDigit()
+                    }
+                    .foregroundColor(.secondary)
+                    .padding(.vertical, 4)
+                    .frame(maxWidth: .infinity)
+                    .background(Color.green.opacity(0.1))
+                }
+
+                // System prompt indicator
+                if !viewModel.settings.systemPrompt.isEmpty {
+                    HStack(spacing: 4) {
+                        Image(systemName: "person.fill")
+                            .font(.caption2)
+                        Text(viewModel.settings.systemPrompt.prefix(50))
+                            .font(.caption2)
+                            .lineLimit(1)
+                    }
+                    .foregroundColor(.purple)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 4)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Color.purple.opacity(0.08))
+                }
+
                 // Messages
                 ScrollViewReader { proxy in
                     ScrollView {
                         LazyVStack(spacing: 4) {
                             ForEach(viewModel.messages) { message in
-                                MessageBubble(message: message)
-                                    .id(message.id)
+                                let isLast = message.id == viewModel.messages.last?.id
+                                    && message.role == .assistant
+                                MessageBubble(
+                                    message: message,
+                                    isLastAssistant: isLast,
+                                    isStreaming: viewModel.isStreaming,
+                                    onRegenerate: { viewModel.regenerateLastResponse() }
+                                )
+                                .id(message.id)
                             }
                         }
                         .padding(.vertical, 8)
                     }
                     .onChange(of: viewModel.messages.count) { _, _ in
-                        if let lastMessage = viewModel.messages.last {
-                            withAnimation(.easeOut(duration: 0.2)) {
-                                proxy.scrollTo(lastMessage.id, anchor: .bottom)
-                            }
-                        }
+                        scrollToBottom(proxy: proxy)
+                    }
+                    .onChange(of: viewModel.messages.last?.content) { _, _ in
+                        scrollToBottom(proxy: proxy)
                     }
                 }
 
@@ -83,16 +126,43 @@ struct ChatView: View {
             .navigationTitle("Gemma 4 Chat")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    HStack(spacing: 12) {
+                        Button {
+                            viewModel.showHistorySheet = true
+                        } label: {
+                            Image(systemName: "clock.arrow.circlepath")
+                        }
+                        Button {
+                            viewModel.newConversation()
+                        } label: {
+                            Image(systemName: "square.and.pencil")
+                        }
+                    }
+                }
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        viewModel.showDocumentsSheet = true
-                    } label: {
-                        Image(systemName: "folder")
+                    HStack(spacing: 12) {
+                        Button {
+                            viewModel.showDocumentsSheet = true
+                        } label: {
+                            Image(systemName: "folder")
+                        }
+                        Button {
+                            viewModel.showSettingsSheet = true
+                        } label: {
+                            Image(systemName: "gearshape")
+                        }
                     }
                 }
             }
             .sheet(isPresented: $viewModel.showDocumentsSheet) {
                 DocumentsSheet(viewModel: viewModel)
+            }
+            .sheet(isPresented: $viewModel.showSettingsSheet) {
+                SettingsSheet(viewModel: viewModel)
+            }
+            .sheet(isPresented: $viewModel.showHistorySheet) {
+                HistorySheet(viewModel: viewModel)
             }
             .task {
                 await viewModel.loadModel(path: modelPath)
@@ -104,5 +174,13 @@ struct ChatView: View {
         !viewModel.currentInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             && !viewModel.isStreaming
             && viewModel.isModelLoaded
+    }
+
+    private func scrollToBottom(proxy: ScrollViewProxy) {
+        if let lastMessage = viewModel.messages.last {
+            withAnimation(.easeOut(duration: 0.2)) {
+                proxy.scrollTo(lastMessage.id, anchor: .bottom)
+            }
+        }
     }
 }
