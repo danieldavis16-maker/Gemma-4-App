@@ -8,7 +8,10 @@ struct Gemma4ChatApp: App {
         WindowGroup {
             Group {
                 if modelManager.isDownloaded {
-                    ChatView(modelPath: modelManager.modelPath.path)
+                    ChatView(
+                        modelPath: modelManager.modelPath.path,
+                        supportsImages: modelManager.selectedModel?.supportsImages ?? false
+                    )
                 } else {
                     ModelDownloadView(modelManager: modelManager)
                 }

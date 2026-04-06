@@ -1,5 +1,6 @@
 import Foundation
 import SwiftUI
+import UIKit
 
 struct DocumentInfo: Identifiable {
     var id: String { filename }
@@ -36,6 +37,9 @@ class ChatViewModel: ObservableObject {
     @Published var tokensPerSecond: Double = 0
     @Published var tokenCount: Int = 0
 
+    // Image input
+    @Published var pendingImage: UIImage?
+
     // RAG documents
     @Published var loadedDocuments: [DocumentInfo] = []
 
@@ -65,16 +69,30 @@ class ChatViewModel: ObservableObject {
 
     func sendMessage() {
         let text = currentInput.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !text.isEmpty, !isStreaming, isModelLoaded else { return }
+        let hasImage = pendingImage != nil
+        guard (!text.isEmpty || hasImage), !isStreaming, isModelLoaded else { return }
 
         // Create conversation if needed
+        let title = text.isEmpty ? "Image chat" : String(text.prefix(40))
         if currentConversationId == nil {
-            let conv = Conversation(title: String(text.prefix(40)))
+            let conv = Conversation(title: title)
             conversations.insert(conv, at: 0)
             currentConversationId = conv.id
         }
 
-        messages.append(ChatMessage(role: .user, content: text))
+        // Build user message content
+        var userContent = text
+        if let image = pendingImage {
+            // Encode image as base64 for the prompt
+            if let jpegData = image.jpegData(compressionQuality: 0.6) {
+                let base64 = jpegData.base64EncodedString()
+                let imageTag = "[image: data:image/jpeg;base64,\(base64)]"
+                userContent = userContent.isEmpty ? imageTag : "\(imageTag)\n\(userContent)"
+            }
+            pendingImage = nil
+        }
+
+        messages.append(ChatMessage(role: .user, content: userContent))
         currentInput = ""
 
         startGeneration()

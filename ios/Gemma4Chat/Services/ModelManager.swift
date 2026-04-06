@@ -1,5 +1,36 @@
 import Foundation
 
+struct ModelOption: Identifiable {
+    let id: String
+    let name: String
+    let filename: String
+    let url: URL
+    let sizeLabel: String
+    let description: String
+    let supportsImages: Bool
+}
+
+let availableModels: [ModelOption] = [
+    ModelOption(
+        id: "gemma-1b",
+        name: "Gemma 3 1B",
+        filename: "google_gemma-3-1b-it-Q4_K_M.gguf",
+        url: URL(string: "https://huggingface.co/bartowski/google_gemma-3-1b-it-GGUF/resolve/main/google_gemma-3-1b-it-Q4_K_M.gguf")!,
+        sizeLabel: "~800 MB",
+        description: "Fast, lightweight text model. Works on all iPhones.",
+        supportsImages: false
+    ),
+    ModelOption(
+        id: "gemma-4b",
+        name: "Gemma 3 4B",
+        filename: "google_gemma-3-4b-it-Q4_K_M.gguf",
+        url: URL(string: "https://huggingface.co/bartowski/google_gemma-3-4b-it-GGUF/resolve/main/google_gemma-3-4b-it-Q4_K_M.gguf")!,
+        sizeLabel: "~2.5 GB",
+        description: "Multimodal — understands images. Needs 6GB+ RAM (iPhone 13 Pro+).",
+        supportsImages: true
+    ),
+]
+
 @MainActor
 class ModelManager: NSObject, ObservableObject {
     @Published var downloadProgress: Double = 0
@@ -7,47 +38,75 @@ class ModelManager: NSObject, ObservableObject {
     @Published var isDownloading = false
     @Published var error: String?
     @Published var statusText = ""
-
-    static let modelFilename = "google_gemma-3-1b-it-Q4_K_M.gguf"
-    static let modelURL = URL(string: "https://huggingface.co/bartowski/google_gemma-3-1b-it-GGUF/resolve/main/google_gemma-3-1b-it-Q4_K_M.gguf")!
-
-    var modelPath: URL {
-        FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent(Self.modelFilename)
-    }
+    @Published var selectedModelId: String = ""
+    @Published var downloadedModels: Set<String> = []
 
     private var downloadTask: URLSessionDownloadTask?
     private var continuation: CheckedContinuation<Void, Error>?
+    private var downloadingFilename: String = ""
     private lazy var session: URLSession = {
         URLSession(configuration: .default, delegate: self, delegateQueue: .main)
     }()
 
+    var selectedModel: ModelOption? {
+        availableModels.first { $0.id == selectedModelId }
+    }
+
+    var modelPath: URL {
+        let filename = selectedModel?.filename ?? availableModels[0].filename
+        return FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent(filename)
+    }
+
     func checkModel() {
-        // Verify file exists and is a reasonable size (>100MB = likely valid GGUF)
-        if let attrs = try? FileManager.default.attributesOfItem(atPath: modelPath.path),
-           let size = attrs[.size] as? Int64, size > 100_000_000 {
+        // Load saved selection
+        let saved = UserDefaults.standard.string(forKey: "selectedModelId") ?? ""
+        selectedModelId = saved
+
+        // Check which models are downloaded
+        downloadedModels = []
+        for model in availableModels {
+            let path = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+                .appendingPathComponent(model.filename)
+            if let attrs = try? FileManager.default.attributesOfItem(atPath: path.path),
+               let size = attrs[.size] as? Int64, size > 100_000_000 {
+                downloadedModels.insert(model.id)
+            }
+        }
+
+        // If selected model is downloaded, we're ready
+        if !selectedModelId.isEmpty && downloadedModels.contains(selectedModelId) {
             isDownloaded = true
         } else {
-            // Remove any corrupted/partial downloads
-            try? FileManager.default.removeItem(at: modelPath)
             isDownloaded = false
         }
     }
 
-    func downloadModel() async {
+    func selectModel(_ modelId: String) {
+        selectedModelId = modelId
+        UserDefaults.standard.set(modelId, forKey: "selectedModelId")
+        if downloadedModels.contains(modelId) {
+            isDownloaded = true
+        }
+    }
+
+    func downloadModel(_ model: ModelOption) async {
         guard !isDownloading else { return }
         isDownloading = true
         error = nil
         downloadProgress = 0
         statusText = "Starting download..."
+        downloadingFilename = model.filename
 
         do {
             try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Void, Error>) in
                 self.continuation = cont
-                let task = self.session.downloadTask(with: Self.modelURL)
+                let task = self.session.downloadTask(with: model.url)
                 self.downloadTask = task
                 task.resume()
             }
+            downloadedModels.insert(model.id)
+            selectModel(model.id)
             isDownloaded = true
             statusText = "Ready!"
         } catch {
@@ -62,10 +121,16 @@ class ModelManager: NSObject, ObservableObject {
         downloadTask?.cancel()
     }
 
-    func deleteModel() {
-        try? FileManager.default.removeItem(at: modelPath)
-        isDownloaded = false
-        statusText = ""
+    func deleteModel(_ model: ModelOption) {
+        let path = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent(model.filename)
+        try? FileManager.default.removeItem(at: path)
+        downloadedModels.remove(model.id)
+        if selectedModelId == model.id {
+            isDownloaded = false
+            selectedModelId = ""
+            UserDefaults.standard.set("", forKey: "selectedModelId")
+        }
     }
 }
 
@@ -75,9 +140,10 @@ extension ModelManager: URLSessionDownloadDelegate {
         downloadTask: URLSessionDownloadTask,
         didFinishDownloadingTo location: URL
     ) {
-        // Move file synchronously before the temp file is deleted
+        // Read filename from the response URL or fallback to last path component
+        let filename = downloadTask.originalRequest?.url?.lastPathComponent ?? "model.gguf"
         let dest = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent(Self.modelFilename)
+            .appendingPathComponent(filename)
         do {
             if FileManager.default.fileExists(atPath: dest.path) {
                 try FileManager.default.removeItem(at: dest)

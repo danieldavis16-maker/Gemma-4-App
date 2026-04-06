@@ -2,7 +2,10 @@ import SwiftUI
 
 struct ChatView: View {
     let modelPath: String
+    let supportsImages: Bool
     @StateObject private var viewModel = ChatViewModel()
+    @State private var showImagePicker = false
+    @State private var showCamera = false
 
     var body: some View {
         NavigationStack {
@@ -92,10 +95,50 @@ struct ChatView: View {
 
                 Divider()
 
+                // Pending image preview
+                if let img = viewModel.pendingImage {
+                    HStack {
+                        Image(uiImage: img)
+                            .resizable()
+                            .scaledToFill()
+                            .frame(width: 60, height: 60)
+                            .cornerRadius(8)
+                            .clipped()
+                        Button {
+                            viewModel.pendingImage = nil
+                        } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundColor(.secondary)
+                        }
+                        Spacer()
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.top, 6)
+                }
+
                 // Input bar
                 HStack(spacing: 8) {
                     SearchToggle(isEnabled: $viewModel.webSearchEnabled)
                     RAGToggle(isEnabled: $viewModel.ragEnabled)
+
+                    if supportsImages {
+                        Menu {
+                            Button {
+                                showCamera = true
+                            } label: {
+                                Label("Camera", systemImage: "camera")
+                            }
+                            Button {
+                                showImagePicker = true
+                            } label: {
+                                Label("Photo Library", systemImage: "photo")
+                            }
+                        } label: {
+                            Image(systemName: "photo.badge.plus")
+                                .font(.system(size: 18))
+                                .foregroundColor(.blue)
+                        }
+                    }
 
                     TextField("Message Gemma...", text: $viewModel.currentInput, axis: .vertical)
                         .textFieldStyle(.plain)
@@ -164,6 +207,12 @@ struct ChatView: View {
             .sheet(isPresented: $viewModel.showHistorySheet) {
                 HistorySheet(viewModel: viewModel)
             }
+            .sheet(isPresented: $showImagePicker) {
+                ImagePicker(image: $viewModel.pendingImage)
+            }
+            .fullScreenCover(isPresented: $showCamera) {
+                ImagePicker(image: $viewModel.pendingImage, sourceType: .camera)
+            }
             .task {
                 await viewModel.loadModel(path: modelPath)
             }
@@ -171,9 +220,9 @@ struct ChatView: View {
     }
 
     private var canSend: Bool {
-        !viewModel.currentInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-            && !viewModel.isStreaming
-            && viewModel.isModelLoaded
+        let hasText = !viewModel.currentInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        let hasImage = viewModel.pendingImage != nil
+        return (hasText || hasImage) && !viewModel.isStreaming && viewModel.isModelLoaded
     }
 
     private func scrollToBottom(proxy: ScrollViewProxy) {
