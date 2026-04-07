@@ -191,15 +191,38 @@ class ChatViewModel: ObservableObject {
             let history = messages.dropLast().map { (role: $0.role.rawValue, content: $0.content) }
             let prompt = LocalLLMService.formatChat(messages: history, systemPrompt: systemPrompt)
 
+            var lastUIUpdate = Date()
             for await token in llmService.generate(prompt: prompt, settings: settings) {
-                appendToCurrentResponse(token)
+                currentResponse += token
                 tokenCount += 1
-                if let start = generationStartTime {
-                    let elapsed = Date().timeIntervalSince(start)
-                    if elapsed > 0.5 {
-                        tokensPerSecond = Double(tokenCount) / elapsed
+
+                // Throttle UI updates to every 50ms for smooth performance
+                let now = Date()
+                if now.timeIntervalSince(lastUIUpdate) > 0.05 {
+                    if !messages.isEmpty {
+                        messages[messages.count - 1] = ChatMessage(
+                            id: messages[messages.count - 1].id,
+                            role: .assistant,
+                            content: currentResponse
+                        )
                     }
+                    if let start = generationStartTime {
+                        let elapsed = now.timeIntervalSince(start)
+                        if elapsed > 0.5 {
+                            tokensPerSecond = Double(tokenCount) / elapsed
+                        }
+                    }
+                    lastUIUpdate = now
                 }
+            }
+
+            // Final UI update with complete response
+            if !messages.isEmpty {
+                messages[messages.count - 1] = ChatMessage(
+                    id: messages[messages.count - 1].id,
+                    role: .assistant,
+                    content: currentResponse
+                )
             }
 
             isStreaming = false
@@ -271,16 +294,4 @@ class ChatViewModel: ObservableObject {
         refreshDocuments()
     }
 
-    // MARK: - Private
-
-    private func appendToCurrentResponse(_ token: String) {
-        currentResponse += token
-        if !messages.isEmpty {
-            messages[messages.count - 1] = ChatMessage(
-                id: messages[messages.count - 1].id,
-                role: .assistant,
-                content: currentResponse
-            )
-        }
-    }
 }

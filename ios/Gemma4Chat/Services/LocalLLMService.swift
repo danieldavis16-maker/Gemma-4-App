@@ -32,7 +32,7 @@ class LocalLLMService {
         unload()
 
         var mparams = llama_model_default_params()
-        mparams.n_gpu_layers = 0 // Use CPU only for compatibility
+        mparams.n_gpu_layers = 99 // Offload all layers to Metal GPU
 
         guard let m = llama_model_load_from_file(path, mparams) else {
             throw LLMError.failedToLoadModel
@@ -40,10 +40,10 @@ class LocalLLMService {
         model = m
 
         var cparams = llama_context_default_params()
-        cparams.n_ctx = 2048
+        cparams.n_ctx = 4096
         cparams.n_batch = 512
         cparams.n_ubatch = 512
-        cparams.n_threads = Int32(min(4, ProcessInfo.processInfo.activeProcessorCount))
+        cparams.n_threads = Int32(ProcessInfo.processInfo.activeProcessorCount)
         cparams.n_threads_batch = cparams.n_threads
 
         guard let c = llama_init_from_model(m, cparams) else {
