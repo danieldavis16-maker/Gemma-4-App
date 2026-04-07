@@ -45,7 +45,6 @@ class LocalLLMService {
         cparams.n_ubatch = 512
         cparams.n_threads = Int32(min(4, ProcessInfo.processInfo.activeProcessorCount))
         cparams.n_threads_batch = cparams.n_threads
-        cparams.flash_attn = false
 
         guard let c = llama_init_from_model(m, cparams) else {
             llama_model_free(m)
@@ -63,10 +62,14 @@ class LocalLLMService {
     }
 
     func generate(prompt: String, settings: LLMSettings = .default) -> AsyncStream<String> {
-        AsyncStream { [weak self] continuation in
+        AsyncStream<String> { continuation in
+            let model = self.model
+            let ctx = self.context
+            let llmSelf = self
+
             let task = Task.detached(priority: .userInitiated) {
                 defer { continuation.finish() }
-                guard let self, let model = self.model, let ctx = self.context else { return }
+                guard let model, let ctx else { return }
 
                 let vocab = llama_model_get_vocab(model)
                 guard let vocab else { return }
@@ -76,7 +79,7 @@ class LocalLLMService {
                 llama_memory_clear(memory, true)
 
                 // Tokenize prompt
-                var tokens = self.tokenize(vocab: vocab, text: prompt, addBOS: true)
+                var tokens = llmSelf.tokenize(vocab: vocab, text: prompt, addBOS: true)
                 guard !tokens.isEmpty else { return }
 
                 // Truncate to fit context window (leave room for generation)
@@ -87,17 +90,17 @@ class LocalLLMService {
 
                 // Decode prompt in batches of 512
                 let batchSize = 512
-                var i = 0
-                while i < tokens.count {
-                    let end = min(i + batchSize, tokens.count)
-                    var slice = Array(tokens[i..<end])
-                    var batch = llama_batch_get_one(&slice, Int32(slice.count))
-                    let decodeResult = llama_decode(ctx, batch)
+                var offset = 0
+                while offset < tokens.count {
+                    let end = min(offset + batchSize, tokens.count)
+                    var slice = Array(tokens[offset..<end])
+                    let batchObj = llama_batch_get_one(&slice, Int32(slice.count))
+                    let decodeResult = llama_decode(ctx, batchObj)
                     guard decodeResult == 0 else {
-                        continuation.yield("[Error: prompt decode failed at batch \(i/batchSize)]")
+                        continuation.yield("[Error: prompt decode failed]")
                         return
                     }
-                    i = end
+                    offset = end
                 }
 
                 // Init sampler chain with configurable settings
@@ -119,14 +122,14 @@ class LocalLLMService {
 
                     if llama_vocab_is_eog(vocab, token) { break }
 
-                    let piece = self.tokenToPiece(vocab: vocab, token: token, buffer: &utf8Buffer)
+                    let piece = llmSelf.tokenToPiece(vocab: vocab, token: token, buffer: &utf8Buffer)
                     if !piece.isEmpty {
                         continuation.yield(piece)
                     }
 
                     var tokenArr = [token]
-                    batch = llama_batch_get_one(&tokenArr, 1)
-                    guard llama_decode(ctx, batch) == 0 else { break }
+                    let nextBatch = llama_batch_get_one(&tokenArr, 1)
+                    guard llama_decode(ctx, nextBatch) == 0 else { break }
                 }
 
                 // Flush remaining UTF-8 buffer
@@ -192,7 +195,6 @@ class LocalLLMService {
             return str
         }
 
-        // Incomplete UTF-8 sequence, wait for more bytes
         return ""
     }
 }
