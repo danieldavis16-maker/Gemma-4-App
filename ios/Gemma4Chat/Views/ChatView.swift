@@ -3,6 +3,7 @@ import SwiftUI
 struct ChatView: View {
     let modelPath: String
     let supportsImages: Bool
+    var onSwitchModel: (() -> Void)?
     @StateObject private var viewModel = ChatViewModel()
     @State private var showImagePicker = false
     @State private var showCamera = false
@@ -24,10 +25,17 @@ struct ChatView: View {
                 }
 
                 if let error = viewModel.modelLoadError {
-                    Text("Error: \(error)")
+                    VStack(spacing: 8) {
+                        Text("Error: \(error)")
+                            .font(.caption)
+                            .foregroundColor(.red)
+                        Button("Switch Model") {
+                            onSwitchModel?()
+                        }
                         .font(.caption)
-                        .foregroundColor(.red)
-                        .padding(8)
+                        .buttonStyle(.bordered)
+                    }
+                    .padding(8)
                 }
 
                 // Token speed indicator
