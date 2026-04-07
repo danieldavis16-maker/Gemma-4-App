@@ -45,10 +45,7 @@ class ModelManager: NSObject, ObservableObject {
     private var continuation: CheckedContinuation<Void, Error>?
     private var downloadingFilename: String = ""
     private lazy var session: URLSession = {
-        let config = URLSessionConfiguration.background(withIdentifier: "com.gemma4chat.modeldownload")
-        config.isDiscretionary = false
-        config.sessionSendsLaunchEvents = true
-        return URLSession(configuration: config, delegate: self, delegateQueue: .main)
+        URLSession(configuration: .default, delegate: self, delegateQueue: .main)
     }()
 
     var selectedModel: ModelOption? {
@@ -62,9 +59,16 @@ class ModelManager: NSObject, ObservableObject {
     }
 
     func checkModel() {
-        // Check for previous crash during model load
+        // Check for previous crash during model load — delete the offending model
         if UserDefaults.standard.bool(forKey: "modelLoadInProgress") {
             UserDefaults.standard.set(false, forKey: "modelLoadInProgress")
+            let crashedModelId = UserDefaults.standard.string(forKey: "selectedModelId") ?? ""
+            // Delete the model that caused the crash
+            if let crashedModel = availableModels.first(where: { $0.id == crashedModelId }) {
+                let path = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+                    .appendingPathComponent(crashedModel.filename)
+                try? FileManager.default.removeItem(at: path)
+            }
             UserDefaults.standard.set("", forKey: "selectedModelId")
             selectedModelId = ""
             isDownloaded = false
@@ -83,7 +87,7 @@ class ModelManager: NSObject, ObservableObject {
         for model in availableModels {
             let path = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
                 .appendingPathComponent(model.filename)
-            if isValidGGUF(at: path) {
+            if isValidGGUF(at: path, modelId: model.id) {
                 downloadedModels.insert(model.id)
             }
         }
@@ -119,6 +123,13 @@ class ModelManager: NSObject, ObservableObject {
                 self.downloadTask = task
                 task.resume()
             }
+            // Save expected file size for future validation
+            let path = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+                .appendingPathComponent(model.filename)
+            if let attrs = try? FileManager.default.attributesOfItem(atPath: path.path),
+               let size = attrs[.size] as? Int64 {
+                UserDefaults.standard.set(Int(size), forKey: "expectedSize_\(model.id)")
+            }
             downloadedModels.insert(model.id)
             selectModel(model.id)
             isDownloaded = true
@@ -131,12 +142,20 @@ class ModelManager: NSObject, ObservableObject {
         isDownloading = false
     }
 
-    /// Validate that a file is a proper GGUF by checking the magic number
-    private func isValidGGUF(at url: URL) -> Bool {
+    /// Validate a model file: check GGUF magic header and verify the download completed
+    private func isValidGGUF(at url: URL, modelId: String) -> Bool {
+        guard let attrs = try? FileManager.default.attributesOfItem(atPath: url.path),
+              let size = attrs[.size] as? Int64, size > 100_000_000 else {
+            return false
+        }
+        // Check if we recorded the expected size for this model
+        let expectedSize = UserDefaults.standard.integer(forKey: "expectedSize_\(modelId)")
+        if expectedSize > 0 && size < Int64(expectedSize) {
+            return false // Incomplete download
+        }
         guard let handle = try? FileHandle(forReadingFrom: url) else { return false }
         defer { handle.closeFile() }
         guard let magic = try? handle.read(upToCount: 4), magic.count == 4 else { return false }
-        // GGUF magic: "GGUF" = 0x46475547
         return magic == Data([0x47, 0x47, 0x55, 0x46])
     }
 
@@ -160,7 +179,7 @@ class ModelManager: NSObject, ObservableObject {
         for model in availableModels {
             let path = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
                 .appendingPathComponent(model.filename)
-            if FileManager.default.fileExists(atPath: path.path) && !isValidGGUF(at: path) {
+            if FileManager.default.fileExists(atPath: path.path) && !isValidGGUF(at: path, modelId: model.id) {
                 try? FileManager.default.removeItem(at: path)
             }
         }
