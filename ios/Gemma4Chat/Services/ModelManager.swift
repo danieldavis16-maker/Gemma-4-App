@@ -71,6 +71,9 @@ class ModelManager: NSObject, ObservableObject {
             return
         }
 
+        // Clean up any corrupted/incomplete downloads
+        cleanupInvalidDownloads()
+
         // Load saved selection
         let saved = UserDefaults.standard.string(forKey: "selectedModelId") ?? ""
         selectedModelId = saved
@@ -80,8 +83,7 @@ class ModelManager: NSObject, ObservableObject {
         for model in availableModels {
             let path = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
                 .appendingPathComponent(model.filename)
-            if let attrs = try? FileManager.default.attributesOfItem(atPath: path.path),
-               let size = attrs[.size] as? Int64, size > 100_000_000 {
+            if isValidGGUF(at: path) {
                 downloadedModels.insert(model.id)
             }
         }
@@ -129,6 +131,15 @@ class ModelManager: NSObject, ObservableObject {
         isDownloading = false
     }
 
+    /// Validate that a file is a proper GGUF by checking the magic number
+    private func isValidGGUF(at url: URL) -> Bool {
+        guard let handle = try? FileHandle(forReadingFrom: url) else { return false }
+        defer { handle.closeFile() }
+        guard let magic = try? handle.read(upToCount: 4), magic.count == 4 else { return false }
+        // GGUF magic: "GGUF" = 0x46475547
+        return magic == Data([0x47, 0x47, 0x55, 0x46])
+    }
+
     func cancelDownload() {
         downloadTask?.cancel()
     }
@@ -142,6 +153,16 @@ class ModelManager: NSObject, ObservableObject {
             isDownloaded = false
             selectedModelId = ""
             UserDefaults.standard.set("", forKey: "selectedModelId")
+        }
+    }
+
+    func cleanupInvalidDownloads() {
+        for model in availableModels {
+            let path = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+                .appendingPathComponent(model.filename)
+            if FileManager.default.fileExists(atPath: path.path) && !isValidGGUF(at: path) {
+                try? FileManager.default.removeItem(at: path)
+            }
         }
     }
 }
