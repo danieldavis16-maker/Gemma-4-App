@@ -62,6 +62,15 @@ class ModelManager: NSObject, ObservableObject {
     }
 
     func checkModel() {
+        // Check for previous crash during model load
+        if UserDefaults.standard.bool(forKey: "modelLoadInProgress") {
+            UserDefaults.standard.set(false, forKey: "modelLoadInProgress")
+            UserDefaults.standard.set("", forKey: "selectedModelId")
+            selectedModelId = ""
+            isDownloaded = false
+            return
+        }
+
         // Load saved selection
         let saved = UserDefaults.standard.string(forKey: "selectedModelId") ?? ""
         selectedModelId = saved

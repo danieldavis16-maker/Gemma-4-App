@@ -1,5 +1,4 @@
 import Foundation
-import os
 import SwiftUI
 import UIKit
 
@@ -88,17 +87,8 @@ class ChatViewModel: ObservableObject {
     }
 
     func loadModel(path: String) async {
-        // Check available memory before loading
-        let fileSize = (try? FileManager.default.attributesOfItem(atPath: path))?[.size] as? Int64 ?? 0
-        let availableMemory = os_proc_available_memory()
-        let neededMemory = Int(Double(fileSize) * 1.5) // Model needs ~1.5x file size in RAM
-
-        if neededMemory > availableMemory {
-            let fileMB = fileSize / 1_000_000
-            let availMB = availableMemory / 1_000_000
-            modelLoadError = "Not enough memory. Model needs ~\(fileMB * 3 / 2) MB but only \(availMB) MB available. Try the smaller 1B model."
-            return
-        }
+        // Set crash recovery flag
+        UserDefaults.standard.set(true, forKey: "modelLoadInProgress")
 
         do {
             try llmService.load(path: path)
@@ -106,6 +96,9 @@ class ChatViewModel: ObservableObject {
         } catch {
             modelLoadError = error.localizedDescription
         }
+
+        // Clear crash recovery flag on success
+        UserDefaults.standard.set(false, forKey: "modelLoadInProgress")
     }
 
     // MARK: - Messaging
