@@ -288,8 +288,10 @@ struct ChatView: View {
             }
             .task {
                 await viewModel.loadModel(path: modelPath)
-                viewModel.voiceService.requestPermission()
                 viewModel.checkSiriQuestion()
+            }
+            .onAppear {
+                viewModel.voiceService.requestPermission()
             }
         }
     }

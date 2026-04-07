@@ -32,7 +32,7 @@ class LocalLLMService {
         unload()
 
         var mparams = llama_model_default_params()
-        mparams.n_gpu_layers = 99 // Offload all layers to Metal GPU
+        mparams.n_gpu_layers = 0 // Use CPU only for compatibility
 
         guard let m = llama_model_load_from_file(path, mparams) else {
             throw LLMError.failedToLoadModel
