@@ -40,9 +40,10 @@ class LocalLLMService {
         model = m
 
         var cparams = llama_context_default_params()
-        cparams.n_ctx = 4096
+        cparams.n_ctx = 2048
         cparams.n_threads = Int32(min(4, ProcessInfo.processInfo.activeProcessorCount))
         cparams.n_threads_batch = cparams.n_threads
+        cparams.flash_attn = false
 
         guard let c = llama_init_from_model(m, cparams) else {
             llama_model_free(m)
@@ -76,9 +77,19 @@ class LocalLLMService {
                 var tokens = self.tokenize(vocab: vocab, text: prompt, addBOS: true)
                 guard !tokens.isEmpty else { return }
 
+                // Truncate to fit context window (leave room for generation)
+                let maxPromptTokens = 1536
+                if tokens.count > maxPromptTokens {
+                    tokens = Array(tokens.suffix(maxPromptTokens))
+                }
+
                 // Decode prompt
                 var batch = llama_batch_get_one(&tokens, Int32(tokens.count))
-                guard llama_decode(ctx, batch) == 0 else { return }
+                let decodeResult = llama_decode(ctx, batch)
+                guard decodeResult == 0 else {
+                    continuation.yield("[Error: prompt decode failed with code \(decodeResult)]")
+                    return
+                }
 
                 // Init sampler chain with configurable settings
                 let sparams = llama_sampler_chain_default_params()
