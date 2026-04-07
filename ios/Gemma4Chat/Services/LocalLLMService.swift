@@ -41,6 +41,8 @@ class LocalLLMService {
 
         var cparams = llama_context_default_params()
         cparams.n_ctx = 2048
+        cparams.n_batch = 512
+        cparams.n_ubatch = 512
         cparams.n_threads = Int32(min(4, ProcessInfo.processInfo.activeProcessorCount))
         cparams.n_threads_batch = cparams.n_threads
         cparams.flash_attn = false
@@ -83,12 +85,19 @@ class LocalLLMService {
                     tokens = Array(tokens.suffix(maxPromptTokens))
                 }
 
-                // Decode prompt
-                var batch = llama_batch_get_one(&tokens, Int32(tokens.count))
-                let decodeResult = llama_decode(ctx, batch)
-                guard decodeResult == 0 else {
-                    continuation.yield("[Error: prompt decode failed with code \(decodeResult)]")
-                    return
+                // Decode prompt in batches of 512
+                let batchSize = 512
+                var i = 0
+                while i < tokens.count {
+                    let end = min(i + batchSize, tokens.count)
+                    var slice = Array(tokens[i..<end])
+                    var batch = llama_batch_get_one(&slice, Int32(slice.count))
+                    let decodeResult = llama_decode(ctx, batch)
+                    guard decodeResult == 0 else {
+                        continuation.yield("[Error: prompt decode failed at batch \(i/batchSize)]")
+                        return
+                    }
+                    i = end
                 }
 
                 // Init sampler chain with configurable settings
