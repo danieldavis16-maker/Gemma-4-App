@@ -59,6 +59,22 @@ struct ChatView: View {
                     .background(Color.green.opacity(0.1))
                 }
 
+                // Project indicator
+                if let project = viewModel.currentProject {
+                    HStack(spacing: 4) {
+                        Image(systemName: "folder.fill")
+                            .font(.caption2)
+                        Text(project.name)
+                            .font(.caption2)
+                            .lineLimit(1)
+                    }
+                    .foregroundColor(.orange)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 4)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Color.orange.opacity(0.08))
+                }
+
                 // System prompt indicator
                 if !viewModel.settings.systemPrompt.isEmpty {
                     HStack(spacing: 4) {
@@ -239,11 +255,16 @@ struct ChatView: View {
                 .padding(.vertical, 8)
                 .background(Color(.systemBackground))
             }
-            .navigationTitle("Gemma 4 Chat")
+            .navigationTitle(viewModel.currentProject?.name ?? "Gemma 4 Chat")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    HStack(spacing: 12) {
+                    HStack(spacing: 10) {
+                        Button {
+                            viewModel.showProjectsSheet = true
+                        } label: {
+                            Image(systemName: "folder.badge.gearshape")
+                        }
                         Button {
                             viewModel.showHistorySheet = true
                         } label: {
@@ -257,11 +278,27 @@ struct ChatView: View {
                     }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    HStack(spacing: 12) {
+                    HStack(spacing: 10) {
+                        Menu {
+                            Button {
+                                viewModel.exportCurrentConversation(format: .text)
+                            } label: {
+                                Label("Export as Text", systemImage: "doc.text")
+                            }
+                            Button {
+                                viewModel.exportCurrentConversation(format: .pdf)
+                            } label: {
+                                Label("Export as PDF", systemImage: "doc.richtext")
+                            }
+                        } label: {
+                            Image(systemName: "square.and.arrow.up")
+                        }
+                        .disabled(viewModel.currentConversationId == nil)
+
                         Button {
                             viewModel.showDocumentsSheet = true
                         } label: {
-                            Image(systemName: "folder")
+                            Image(systemName: "doc.text")
                         }
                         Button {
                             viewModel.showSettingsSheet = true
@@ -279,6 +316,9 @@ struct ChatView: View {
             }
             .sheet(isPresented: $viewModel.showHistorySheet) {
                 HistorySheet(viewModel: viewModel)
+            }
+            .sheet(isPresented: $viewModel.showProjectsSheet) {
+                ProjectsView(viewModel: viewModel)
             }
             .sheet(isPresented: $showImagePicker) {
                 ImagePicker(image: $viewModel.pendingImage)

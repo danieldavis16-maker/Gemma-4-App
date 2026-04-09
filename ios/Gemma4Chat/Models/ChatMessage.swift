@@ -38,6 +38,24 @@ struct Conversation: Identifiable, Codable {
     }
 }
 
+struct Project: Identifiable, Codable {
+    let id: UUID
+    var name: String
+    var systemPrompt: String
+    var conversationIds: [UUID]
+    let createdAt: Date
+    var updatedAt: Date
+
+    init(id: UUID = UUID(), name: String, systemPrompt: String = "", conversationIds: [UUID] = [], createdAt: Date = Date()) {
+        self.id = id
+        self.name = name
+        self.systemPrompt = systemPrompt
+        self.conversationIds = conversationIds
+        self.createdAt = createdAt
+        self.updatedAt = createdAt
+    }
+}
+
 struct LLMSettings: Codable {
     var temperature: Float = 0.7
     var topK: Int32 = 40

@@ -3,17 +3,24 @@ import SwiftUI
 struct HistorySheet: View {
     @ObservedObject var viewModel: ChatViewModel
 
+    private var filteredConversations: [Conversation] {
+        if let project = viewModel.currentProject {
+            return viewModel.conversations.filter { project.conversationIds.contains($0.id) }
+        }
+        return viewModel.conversations
+    }
+
     var body: some View {
         NavigationStack {
             List {
-                if viewModel.conversations.isEmpty {
+                if filteredConversations.isEmpty {
                     ContentUnavailableView(
                         "No Conversations",
                         systemImage: "bubble.left.and.bubble.right",
                         description: Text("Start chatting to create your first conversation.")
                     )
                 } else {
-                    ForEach(viewModel.conversations) { conversation in
+                    ForEach(filteredConversations) { conversation in
                         Button {
                             viewModel.loadConversation(conversation)
                             viewModel.showHistorySheet = false
@@ -33,15 +40,34 @@ struct HistorySheet: View {
                             }
                             .padding(.vertical, 2)
                         }
-                    }
-                    .onDelete { indexSet in
-                        for index in indexSet {
-                            viewModel.deleteConversation(viewModel.conversations[index])
+                        .swipeActions(edge: .trailing) {
+                            Button(role: .destructive) {
+                                viewModel.deleteConversation(conversation)
+                            } label: {
+                                Label("Delete", systemImage: "trash")
+                            }
+                        }
+                        .swipeActions(edge: .leading) {
+                            Menu {
+                                Button {
+                                    viewModel.exportConversation(conversation, format: .text)
+                                } label: {
+                                    Label("Text", systemImage: "doc.text")
+                                }
+                                Button {
+                                    viewModel.exportConversation(conversation, format: .pdf)
+                                } label: {
+                                    Label("PDF", systemImage: "doc.richtext")
+                                }
+                            } label: {
+                                Label("Export", systemImage: "square.and.arrow.up")
+                            }
+                            .tint(.blue)
                         }
                     }
                 }
             }
-            .navigationTitle("History")
+            .navigationTitle(viewModel.currentProject != nil ? "\(viewModel.currentProject!.name) History" : "History")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {

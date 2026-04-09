@@ -8,6 +8,8 @@ struct ModelOption: Identifiable {
     let sizeLabel: String
     let description: String
     let supportsImages: Bool
+    let mmProjFilename: String?
+    let mmProjURL: URL?
 }
 
 let availableModels: [ModelOption] = [
@@ -18,16 +20,20 @@ let availableModels: [ModelOption] = [
         url: URL(string: "https://huggingface.co/bartowski/google_gemma-3-1b-it-GGUF/resolve/main/google_gemma-3-1b-it-Q4_K_M.gguf")!,
         sizeLabel: "~800 MB",
         description: "Fast, lightweight text model. Works on all iPhones.",
-        supportsImages: false
+        supportsImages: false,
+        mmProjFilename: nil,
+        mmProjURL: nil
     ),
     ModelOption(
         id: "gemma-4b",
         name: "Gemma 3 4B",
         filename: "google_gemma-3-4b-it-Q4_K_M.gguf",
         url: URL(string: "https://huggingface.co/bartowski/google_gemma-3-4b-it-GGUF/resolve/main/google_gemma-3-4b-it-Q4_K_M.gguf")!,
-        sizeLabel: "~2.5 GB",
+        sizeLabel: "~2.5 GB + 200 MB vision",
         description: "Multimodal — understands images. Needs 6GB+ RAM (iPhone 13 Pro+).",
-        supportsImages: true
+        supportsImages: true,
+        mmProjFilename: "mmproj-google_gemma-3-4b-it-f16.gguf",
+        mmProjURL: URL(string: "https://huggingface.co/bartowski/google_gemma-3-4b-it-GGUF/resolve/main/mmproj-google_gemma-3-4b-it-f16.gguf")
     ),
 ]
 
@@ -56,6 +62,13 @@ class ModelManager: NSObject, ObservableObject {
         let filename = selectedModel?.filename ?? availableModels[0].filename
         return FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
             .appendingPathComponent(filename)
+    }
+
+    var mmProjPath: URL? {
+        guard let filename = selectedModel?.mmProjFilename else { return nil }
+        let path = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent(filename)
+        return FileManager.default.fileExists(atPath: path.path) ? path : nil
     }
 
     func checkModel() {
@@ -130,6 +143,19 @@ class ModelManager: NSObject, ObservableObject {
                let size = attrs[.size] as? Int64 {
                 UserDefaults.standard.set(Int(size), forKey: "expectedSize_\(model.id)")
             }
+            // Download mmproj if needed
+            if let mmURL = model.mmProjURL, let mmFilename = model.mmProjFilename {
+                statusText = "Downloading vision model..."
+                downloadProgress = 0
+                downloadingFilename = mmFilename
+                try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Void, Error>) in
+                    self.continuation = cont
+                    let task = self.session.downloadTask(with: mmURL)
+                    self.downloadTask = task
+                    task.resume()
+                }
+            }
+
             downloadedModels.insert(model.id)
             selectModel(model.id)
             isDownloaded = true
