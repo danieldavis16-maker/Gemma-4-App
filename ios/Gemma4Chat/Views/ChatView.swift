@@ -1,12 +1,15 @@
 import SwiftUI
 
 struct ChatView: View {
-    let modelPath: String
-    let supportsImages: Bool
+    @ObservedObject var modelManager: ModelManager
     var onSwitchModel: (() -> Void)?
     @StateObject private var viewModel = ChatViewModel()
     @State private var showImagePicker = false
     @State private var showCamera = false
+
+    private var supportsImages: Bool {
+        modelManager.selectedModel?.supportsImages ?? false
+    }
 
     var body: some View {
         NavigationStack {
@@ -107,7 +110,6 @@ struct ChatView: View {
                                 )
                                 .id(message.id)
 
-                                // Show RAG sources after last assistant message
                                 if message.id == viewModel.messages.last?.id
                                     && message.role == .assistant
                                     && !viewModel.isStreaming
@@ -233,7 +235,6 @@ struct ChatView: View {
                                 .foregroundColor(.blue)
                         }
                     } else {
-                        // Microphone button when no text
                         Button(action: {
                             if viewModel.voiceService.isRecording {
                                 viewModel.voiceService.stopRecording()
@@ -260,6 +261,9 @@ struct ChatView: View {
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     HStack(spacing: 10) {
+                        // Model selector
+                        modelSelector
+
                         Button {
                             viewModel.showProjectsSheet = true
                         } label: {
@@ -327,12 +331,72 @@ struct ChatView: View {
                 ImagePicker(image: $viewModel.pendingImage, sourceType: .camera)
             }
             .task {
-                await viewModel.loadModel(path: modelPath)
+                await viewModel.loadModel(path: modelManager.modelPath.path)
                 viewModel.checkSiriQuestion()
             }
             .onAppear {
                 viewModel.voiceService.requestPermission()
             }
+        }
+    }
+
+    // MARK: - Model Selector
+
+    @ViewBuilder
+    private var modelSelector: some View {
+        Menu {
+            ForEach(availableModels) { model in
+                let isSelected = modelManager.selectedModelId == model.id
+                let isDownloaded = modelManager.downloadedModels.contains(model.id)
+
+                Button {
+                    if isDownloaded && !isSelected {
+                        modelManager.selectModel(model.id)
+                        // Reload with new model
+                        viewModel.isModelLoaded = false
+                        viewModel.modelLoadError = nil
+                        Task {
+                            await viewModel.loadModel(path: modelManager.modelPath.path)
+                        }
+                    } else if !isDownloaded {
+                        onSwitchModel?()
+                    }
+                } label: {
+                    HStack {
+                        Text(model.name)
+                        if model.supportsImages {
+                            Text("(Vision)")
+                        }
+                        Spacer()
+                        if isSelected {
+                            Image(systemName: "checkmark")
+                        } else if !isDownloaded {
+                            Image(systemName: "arrow.down.circle")
+                        }
+                    }
+                }
+                .disabled(isSelected)
+            }
+
+            Divider()
+
+            Button {
+                onSwitchModel?()
+            } label: {
+                Label("Manage Models", systemImage: "arrow.down.app")
+            }
+        } label: {
+            HStack(spacing: 3) {
+                Image(systemName: "cpu")
+                    .font(.system(size: 14))
+                Text(modelManager.selectedModel?.name ?? "Model")
+                    .font(.caption2)
+                    .lineLimit(1)
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(Color(.systemGray6))
+            .cornerRadius(8)
         }
     }
 
