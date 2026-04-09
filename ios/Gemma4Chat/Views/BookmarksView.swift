@@ -10,7 +10,9 @@ struct BookmarksView: View {
                 results.append((conv, msg))
             }
         }
-        return results.sorted { $0.message.timestamp > $1.message.timestamp }
+        return results.sorted { (a: (Conversation, ChatMessage), b: (Conversation, ChatMessage)) in
+            a.1.timestamp > b.1.timestamp
+        }
     }
 
     var body: some View {
