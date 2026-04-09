@@ -32,10 +32,16 @@ class ChatViewModel: ObservableObject {
     @Published var showSettingsSheet = false
     @Published var showHistorySheet = false
     @Published var showProjectsSheet = false
+    @Published var showTemplatesSheet = false
+    @Published var showSearchSheet = false
+    @Published var showBookmarksSheet = false
 
     // Conversation history
     @Published var conversations: [Conversation] = []
     @Published var currentConversationId: UUID?
+
+    // Function calling
+    @Published var toolsEnabled = true
 
     // Projects
     @Published var projects: [Project] = []
@@ -169,6 +175,11 @@ class ChatViewModel: ObservableObject {
         generationStartTime = Date()
         messages.append(ChatMessage(role: .assistant, content: ""))
 
+        // Check clipboard for image
+        if let clipImage = UIPasteboard.general.image, pendingImage == nil {
+            pendingImage = clipImage
+        }
+
         generationTask = Task {
             // Use project system prompt if available, otherwise use settings
             var systemPrompt: String?
@@ -176,6 +187,11 @@ class ChatViewModel: ObservableObject {
                 systemPrompt = projectPrompt
             } else if !settings.systemPrompt.isEmpty {
                 systemPrompt = settings.systemPrompt
+            }
+
+            // Add tool instructions if enabled
+            if toolsEnabled {
+                systemPrompt = (systemPrompt ?? "") + "\n\n" + ToolService.toolInstructions
             }
 
             if webSearchEnabled {
@@ -228,6 +244,11 @@ class ChatViewModel: ObservableObject {
                 }
             }
 
+            // Process tool calls in the response
+            if toolsEnabled, let toolResult = ToolService.processToolCalls(in: currentResponse) {
+                currentResponse = toolResult.cleanText
+            }
+
             if !messages.isEmpty {
                 messages[messages.count - 1] = ChatMessage(
                     id: messages[messages.count - 1].id,
@@ -240,6 +261,9 @@ class ChatViewModel: ObservableObject {
             currentResponse = ""
             tokensPerSecond = 0
             lightHaptic.impactOccurred()
+
+            // Auto-title: use first response to generate a better title
+            autoTitleConversation()
             saveCurrentConversation()
         }
     }
@@ -380,5 +404,104 @@ class ChatViewModel: ObservableObject {
     func deleteDocument(filename: String) {
         ragService.deleteDocument(filename: filename)
         refreshDocuments()
+    }
+
+    // MARK: - Templates
+
+    func applyTemplate(_ template: PromptTemplate) {
+        newConversation()
+        settings.systemPrompt = template.systemPrompt
+        store.saveSettings(settings)
+        if !template.starterMessage.isEmpty {
+            currentInput = template.starterMessage
+        }
+    }
+
+    // MARK: - Auto-title
+
+    private func autoTitleConversation() {
+        guard let id = currentConversationId,
+              let idx = conversations.firstIndex(where: { $0.id == id }),
+              conversations[idx].messages.count <= 3 else { return }
+        // Use first user message + first assistant response to make a smarter title
+        let userMsg = conversations[idx].messages.first(where: { $0.role == .user })?.content ?? ""
+        let assistantMsg = conversations[idx].messages.first(where: { $0.role == .assistant })?.content ?? ""
+        // Extract a meaningful title from the exchange
+        let combined = userMsg.prefix(100)
+        let words = combined.split(separator: " ")
+        if words.count > 3 {
+            conversations[idx].title = words.prefix(6).joined(separator: " ")
+        }
+    }
+
+    // MARK: - Bookmarks
+
+    func toggleBookmark(messageId: UUID) {
+        if let idx = messages.firstIndex(where: { $0.id == messageId }) {
+            messages[idx].isBookmarked.toggle()
+            saveCurrentConversation()
+        }
+    }
+
+    // MARK: - Tags & Pins
+
+    func togglePin() {
+        guard let id = currentConversationId,
+              let idx = conversations.firstIndex(where: { $0.id == id }) else { return }
+        conversations[idx].isPinned.toggle()
+        store.saveAll(conversations)
+    }
+
+    func addTag(_ tag: String) {
+        guard let id = currentConversationId,
+              let idx = conversations.firstIndex(where: { $0.id == id }) else { return }
+        if !conversations[idx].tags.contains(tag) {
+            conversations[idx].tags.append(tag)
+            store.saveAll(conversations)
+        }
+    }
+
+    func removeTag(_ tag: String) {
+        guard let id = currentConversationId,
+              let idx = conversations.firstIndex(where: { $0.id == id }) else { return }
+        conversations[idx].tags.removeAll { $0 == tag }
+        store.saveAll(conversations)
+    }
+
+    // MARK: - Share as Screenshot
+
+    func shareMessageAsScreenshot(_ message: ChatMessage) {
+        let image = ScreenshotService.renderMessage(message)
+        ScreenshotService.share(image: image)
+    }
+
+    func shareConversationAsScreenshot() {
+        guard let id = currentConversationId,
+              let conv = conversations.first(where: { $0.id == id }) else { return }
+        let image = ScreenshotService.renderConversation(conv.messages, title: conv.title)
+        ScreenshotService.share(image: image)
+    }
+
+    // MARK: - Web Archive
+
+    func archiveWebPage(url: String) {
+        Task {
+            do {
+                let chunks = try await WebArchiveService.fetchAndIngest(url: url, ragService: ragService)
+                refreshDocuments()
+                messages.append(ChatMessage(role: .system, content: "Archived \(url) (\(chunks) chunks)"))
+            } catch {
+                messages.append(ChatMessage(role: .system, content: "Archive failed: \(error.localizedDescription)"))
+            }
+        }
+    }
+
+    // MARK: - Sorted Conversations
+
+    var sortedConversations: [Conversation] {
+        conversations.sorted { a, b in
+            if a.isPinned != b.isPinned { return a.isPinned }
+            return a.updatedAt > b.updatedAt
+        }
     }
 }

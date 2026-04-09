@@ -106,7 +106,9 @@ struct ChatView: View {
                                     isLastAssistant: isLast,
                                     isStreaming: viewModel.isStreaming,
                                     onRegenerate: { viewModel.regenerateLastResponse() },
-                                    onSpeak: { viewModel.speakLastResponse() }
+                                    onSpeak: { viewModel.speakLastResponse() },
+                                    onBookmark: { viewModel.toggleBookmark(messageId: message.id) },
+                                    onShareScreenshot: { viewModel.shareMessageAsScreenshot(message) }
                                 )
                                 .id(message.id)
 
@@ -300,14 +302,47 @@ struct ChatView: View {
                         .disabled(viewModel.currentConversationId == nil)
 
                         Button {
-                            viewModel.showDocumentsSheet = true
+                            viewModel.showSearchSheet = true
                         } label: {
-                            Image(systemName: "doc.text")
+                            Image(systemName: "magnifyingglass")
                         }
                         Button {
-                            viewModel.showSettingsSheet = true
+                            viewModel.showBookmarksSheet = true
                         } label: {
-                            Image(systemName: "gearshape")
+                            Image(systemName: "bookmark")
+                        }
+                        Menu {
+                            Button {
+                                viewModel.showTemplatesSheet = true
+                            } label: {
+                                Label("Templates", systemImage: "rectangle.grid.2x2")
+                            }
+                            Button {
+                                viewModel.showDocumentsSheet = true
+                            } label: {
+                                Label("Documents", systemImage: "doc.text")
+                            }
+                            Button {
+                                viewModel.showSettingsSheet = true
+                            } label: {
+                                Label("Settings", systemImage: "gearshape")
+                            }
+                            Divider()
+                            Button {
+                                viewModel.togglePin()
+                            } label: {
+                                let isPinned = viewModel.conversations.first(where: { $0.id == viewModel.currentConversationId })?.isPinned ?? false
+                                Label(isPinned ? "Unpin" : "Pin Chat", systemImage: isPinned ? "pin.slash" : "pin")
+                            }
+                            .disabled(viewModel.currentConversationId == nil)
+                            Button {
+                                viewModel.shareConversationAsScreenshot()
+                            } label: {
+                                Label("Share as Image", systemImage: "camera")
+                            }
+                            .disabled(viewModel.currentConversationId == nil)
+                        } label: {
+                            Image(systemName: "ellipsis.circle")
                         }
                     }
                 }
@@ -323,6 +358,15 @@ struct ChatView: View {
             }
             .sheet(isPresented: $viewModel.showProjectsSheet) {
                 ProjectsView(viewModel: viewModel)
+            }
+            .sheet(isPresented: $viewModel.showTemplatesSheet) {
+                TemplatesView(viewModel: viewModel)
+            }
+            .sheet(isPresented: $viewModel.showSearchSheet) {
+                SearchView(viewModel: viewModel)
+            }
+            .sheet(isPresented: $viewModel.showBookmarksSheet) {
+                BookmarksView(viewModel: viewModel)
             }
             .sheet(isPresented: $showImagePicker) {
                 ImagePicker(image: $viewModel.pendingImage)

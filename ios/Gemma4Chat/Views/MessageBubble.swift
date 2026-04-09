@@ -6,6 +6,8 @@ struct MessageBubble: View {
     var isStreaming: Bool = false
     var onRegenerate: (() -> Void)?
     var onSpeak: (() -> Void)?
+    var onBookmark: (() -> Void)?
+    var onShareScreenshot: (() -> Void)?
 
     var body: some View {
         HStack {
@@ -15,6 +17,13 @@ struct MessageBubble: View {
                 Group {
                     if message.role == .assistant && !message.content.isEmpty {
                         MarkdownText(text: message.content, foregroundColor: textColor)
+                    } else if message.role == .tool {
+                        HStack(spacing: 4) {
+                            Image(systemName: "wrench.and.screwdriver")
+                                .font(.caption)
+                            Text(message.content)
+                        }
+                        .font(.caption)
                     } else {
                         Text(message.content)
                     }
@@ -23,28 +32,48 @@ struct MessageBubble: View {
                 .background(backgroundColor)
                 .foregroundColor(textColor)
                 .cornerRadius(16)
+                .overlay(alignment: .topTrailing) {
+                    if message.isBookmarked {
+                        Image(systemName: "bookmark.fill")
+                            .font(.caption2)
+                            .foregroundColor(.orange)
+                            .padding(6)
+                    }
+                }
                 .contextMenu {
-                        Button {
-                            UIPasteboard.general.string = message.content
-                        } label: {
-                            Label("Copy", systemImage: "doc.on.doc")
-                        }
+                    Button {
+                        UIPasteboard.general.string = message.content
+                    } label: {
+                        Label("Copy", systemImage: "doc.on.doc")
+                    }
 
-                        if message.role == .assistant && !message.content.isEmpty {
-                            Button {
-                                let activityVC = UIActivityViewController(
-                                    activityItems: [message.content],
-                                    applicationActivities: nil
-                                )
-                                if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-                                   let window = windowScene.windows.first {
-                                    window.rootViewController?.present(activityVC, animated: true)
-                                }
-                            } label: {
-                                Label("Share", systemImage: "square.and.arrow.up")
+                    Button {
+                        onBookmark?()
+                    } label: {
+                        Label(message.isBookmarked ? "Remove Bookmark" : "Bookmark", systemImage: message.isBookmarked ? "bookmark.slash" : "bookmark")
+                    }
+
+                    Button {
+                        onShareScreenshot?()
+                    } label: {
+                        Label("Share as Image", systemImage: "camera")
+                    }
+
+                    if !message.content.isEmpty {
+                        Button {
+                            let activityVC = UIActivityViewController(
+                                activityItems: [message.content],
+                                applicationActivities: nil
+                            )
+                            if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+                               let window = windowScene.windows.first {
+                                window.rootViewController?.present(activityVC, animated: true)
                             }
+                        } label: {
+                            Label("Share Text", systemImage: "square.and.arrow.up")
                         }
                     }
+                }
 
                 HStack(spacing: 8) {
                     Text(timeString)
@@ -52,16 +81,12 @@ struct MessageBubble: View {
                         .foregroundColor(.secondary)
 
                     if isLastAssistant && !isStreaming && !message.content.isEmpty {
-                        Button {
-                            onSpeak?()
-                        } label: {
+                        Button { onSpeak?() } label: {
                             Image(systemName: "speaker.wave.2")
                                 .font(.caption2)
                                 .foregroundColor(.secondary)
                         }
-                        Button {
-                            onRegenerate?()
-                        } label: {
+                        Button { onRegenerate?() } label: {
                             Image(systemName: "arrow.counterclockwise")
                                 .font(.caption2)
                                 .foregroundColor(.secondary)
@@ -79,12 +104,10 @@ struct MessageBubble: View {
 
     private var backgroundColor: Color {
         switch message.role {
-        case .user:
-            return .blue
-        case .assistant:
-            return Color(.systemGray5)
-        case .system:
-            return .orange.opacity(0.3)
+        case .user: return .blue
+        case .assistant: return Color(.systemGray5)
+        case .system: return .orange.opacity(0.3)
+        case .tool: return .green.opacity(0.2)
         }
     }
 

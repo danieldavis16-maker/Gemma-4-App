@@ -4,10 +4,17 @@ struct HistorySheet: View {
     @ObservedObject var viewModel: ChatViewModel
 
     private var filteredConversations: [Conversation] {
+        let base: [Conversation]
         if let project = viewModel.currentProject {
-            return viewModel.conversations.filter { project.conversationIds.contains($0.id) }
+            base = viewModel.conversations.filter { project.conversationIds.contains($0.id) }
+        } else {
+            base = viewModel.conversations
         }
-        return viewModel.conversations
+        // Pinned first, then by date
+        return base.sorted { a, b in
+            if a.isPinned != b.isPinned { return a.isPinned }
+            return a.updatedAt > b.updatedAt
+        }
     }
 
     var body: some View {
@@ -26,10 +33,17 @@ struct HistorySheet: View {
                             viewModel.showHistorySheet = false
                         } label: {
                             VStack(alignment: .leading, spacing: 4) {
-                                Text(conversation.title)
-                                    .font(.body)
-                                    .foregroundColor(.primary)
-                                    .lineLimit(1)
+                                HStack(spacing: 4) {
+                                    if conversation.isPinned {
+                                        Image(systemName: "pin.fill")
+                                            .font(.caption2)
+                                            .foregroundColor(.orange)
+                                    }
+                                    Text(conversation.title)
+                                        .font(.body)
+                                        .foregroundColor(.primary)
+                                        .lineLimit(1)
+                                }
                                 HStack {
                                     Text("\(conversation.messages.count) messages")
                                     Text("·")
@@ -37,6 +51,18 @@ struct HistorySheet: View {
                                 }
                                 .font(.caption)
                                 .foregroundColor(.secondary)
+                                if !conversation.tags.isEmpty {
+                                    HStack(spacing: 4) {
+                                        ForEach(conversation.tags, id: \.self) { tag in
+                                            Text(tag)
+                                                .font(.caption2)
+                                                .padding(.horizontal, 6)
+                                                .padding(.vertical, 2)
+                                                .background(Color.blue.opacity(0.1))
+                                                .cornerRadius(4)
+                                        }
+                                    }
+                                }
                             }
                             .padding(.vertical, 2)
                         }
